@@ -172,6 +172,17 @@ export default function DashboardPage() {
         bg: "bg-primary/10",
         href: "/cases",
       });
+      const reservedCount = trialCases.filter((c) => c.status === "reserved_for_judgment").length;
+      if (reservedCount > 0) {
+        base.push({
+          label: "Reserved for Judgment",
+          value: reservedCount.toString(),
+          icon: Gavel,
+          color: "text-amber-600",
+          bg: "bg-amber-50",
+          href: "/cases",
+        });
+      }
     } else if (role === "stenographer") {
       const todayCount = stenoRows.filter((r) => {
         const d = new Date(r.hearing.scheduled_date);
@@ -630,6 +641,39 @@ export default function DashboardPage() {
                 </div>
               </Card>
             )}
+
+            {/* Trial Judge: Reserved for Judgment — highlighted action list */}
+            {role === "trial_judge" &&
+              trialCases.filter((c) => c.status === "reserved_for_judgment").length > 0 && (
+                <Card>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-lg font-semibold text-amber-700">
+                      <Gavel className="h-5 w-5" />
+                      Pending Judgment
+                    </h3>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      Action Required
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {trialCases
+                      .filter((c) => c.status === "reserved_for_judgment")
+                      .map((c) => (
+                        <Link
+                          key={c.id}
+                          href={`/cases/${c.id}`}
+                          className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3 transition-colors hover:bg-amber-100"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{c.title}</p>
+                            <p className="text-xs text-muted">{c.case_number}</p>
+                          </div>
+                          <Badge variant="secondary">Reserved</Badge>
+                        </Link>
+                      ))}
+                  </div>
+                </Card>
+              )}
 
             {/* Recent cases (all roles) */}
             <Card>

@@ -163,7 +163,7 @@ export default function UploadDocumentModal({
           <div className="flex items-center justify-between rounded-lg border border-border bg-cream-light px-3 py-2">
             <div className="flex items-center gap-2 text-sm">
               {fileIcon(file)}
-              <span className="max-w-[200px] truncate font-medium">{file.name}</span>
+              <span className="max-w-50 truncate font-medium">{file.name}</span>
               <span className="text-xs text-muted">({formatSize(file.size)})</span>
             </div>
             <button
