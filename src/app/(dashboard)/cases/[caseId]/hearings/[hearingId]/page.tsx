@@ -10,6 +10,7 @@ import ProceedingsEditor from "@/components/features/hearings/ProceedingsEditor"
 import OrderSheetForm from "@/components/features/hearings/OrderSheetForm";
 import TranscriptEditor from "@/components/features/hearings/TranscriptEditor";
 import AdjournmentPanel from "@/components/features/hearings/AdjournmentPanel";
+import AttendanceSheet from "@/components/features/hearings/AttendanceSheet";
 import { useHearings } from "@/hooks/useHearings";
 import { useCase } from "@/hooks/useCases";
 import { useAuth } from "@/hooks/useAuth";
@@ -296,6 +297,15 @@ export default function HearingDetailPage({
               const result = await addOrderSheet(data);
               return { error: result.error };
             }}
+          />
+        </div>
+
+        {/* Attendance Sheet */}
+        <div className="mt-6">
+          <AttendanceSheet
+            hearingId={hearingId}
+            caseId={caseId}
+            canRecord={!!(canEditProceedings)}
           />
         </div>
 
