@@ -114,6 +114,7 @@ export default function OrderSheetForm({
             </label>
             <select
               value={orderType}
+              title="Select Order Type"
               onChange={(e) => setOrderType(e.target.value as OrderType)}
               className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
@@ -134,6 +135,7 @@ export default function OrderSheetForm({
               onChange={(e) => setOrderText(e.target.value)}
               rows={5}
               placeholder="Write the order text..."
+              title="Enter the order text"
               className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>

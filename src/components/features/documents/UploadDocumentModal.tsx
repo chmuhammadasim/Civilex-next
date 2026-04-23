@@ -144,6 +144,8 @@ export default function UploadDocumentModal({
           <input
             ref={inputRef}
             type="file"
+            title="Select file to upload"
+            placeholder="file"
             accept={ACCEPTED_MIME}
             className="hidden"
             onChange={(e) => {
@@ -168,6 +170,7 @@ export default function UploadDocumentModal({
             </div>
             <button
               type="button"
+              aria-label="Remove selected file"
               className="text-muted hover:text-danger transition-colors"
               onClick={(e) => { e.stopPropagation(); setFile(null); setTitle(""); }}
             >

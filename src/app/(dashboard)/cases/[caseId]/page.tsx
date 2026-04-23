@@ -1400,6 +1400,7 @@ export default function CaseDetailPage({
                 <select
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm"
                   value={docRequestForm.document_type}
+                  title="Document Req Form"
                   onChange={(e) => setDocRequestForm((f) => ({ ...f, document_type: e.target.value }))}
                 >
                   <option value="written_statement">Written Statement</option>
@@ -1530,6 +1531,7 @@ export default function CaseDetailPage({
                 <select
                   className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   value={selectedJudgeId}
+                  title="Select Judge"
                   onChange={(e) => setSelectedJudgeId(e.target.value)}
                 >
                   <option value="">— Select a judge —</option>
@@ -1599,6 +1601,7 @@ export default function CaseDetailPage({
                 <select
                   className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   value={selectedStenoId}
+                  title="Select Stenographer"
                   onChange={(e) => setSelectedStenoId(e.target.value)}
                 >
                   <option value="">— Select a stenographer —</option>
