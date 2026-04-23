@@ -414,7 +414,7 @@ export default function WrittenStatementPanel({ caseId, isDefendantLawyer }: Pro
                         {r.admission.replace(/_/g, " ")}
                       </Badge>
                       {r.response && (
-                        <span className="truncate text-xs text-muted max-w-[200px]">
+                        <span className="truncate text-xs text-muted max-w-50">
                           {r.response}
                         </span>
                       )}
@@ -422,6 +422,7 @@ export default function WrittenStatementPanel({ caseId, isDefendantLawyer }: Pro
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
+                        aria-label="Remove allegation"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeResponse(idx);
@@ -541,6 +542,7 @@ export default function WrittenStatementPanel({ caseId, isDefendantLawyer }: Pro
                 <span>{name}</span>
                 <button
                   type="button"
+                  aria-label="Remove witness"
                   onClick={() =>
                     setWitnessNames((prev) => prev.filter((_, j) => j !== i))
                   }

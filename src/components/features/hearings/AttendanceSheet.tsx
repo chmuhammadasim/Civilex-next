@@ -315,7 +315,7 @@ export default function AttendanceSheet({ hearingId, caseId, canRecord }: Props)
                         presenceBadge(entry.is_present)
                       )}
                     </td>
-                    <td className="px-4 py-2 text-xs text-muted max-w-[160px] truncate">
+                    <td className="px-4 py-2 text-xs text-muted max-w-40 truncate">
                       {entry.notes ?? "—"}
                     </td>
                     {canRecord && (

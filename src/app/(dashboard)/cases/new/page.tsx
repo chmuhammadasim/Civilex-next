@@ -81,6 +81,7 @@ function NewCaseForm() {
   const [sensitivity, setSensitivity] = useState("normal");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [reliefSought, setReliefSought] = useState("");
 
   // ── Plaintiff state ───────────────────────────────────────────────
   const [plaintiff, setPlaintiff] = useState({
@@ -197,6 +198,7 @@ function NewCaseForm() {
       defendant_cnic: defendant.defendant_cnic || undefined,
       defendant_address: defendant.defendant_address || undefined,
       marriage_certificate_number: isMarriageDivorce ? marriageCertNumber : undefined,
+      relief_sought: reliefSought || undefined,
       criminal_details: isCriminal
         ? {
             fir_number: criminal.fir_number,
@@ -309,6 +311,14 @@ function NewCaseForm() {
                 onChange={(e) => setDescription(e.target.value)}
                 error={errors.description}
                 rows={4}
+              />
+              <Textarea
+                id="relief_sought"
+                label="Relief Sought (Optional)"
+                placeholder="State what you are asking the court to order. E.g. payment of damages, cancellation of contract, recovery of property…"
+                value={reliefSought}
+                onChange={(e) => setReliefSought(e.target.value)}
+                rows={3}
               />
             </div>
           </Card>

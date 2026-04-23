@@ -121,6 +121,8 @@ export function useCases() {
     defendant_address?: string;
     // Family-specific
     marriage_certificate_number?: string;
+    // Relief sought by plaintiff
+    relief_sought?: string;
     // Criminal
     criminal_details?: {
       fir_number: string;
@@ -170,6 +172,7 @@ export function useCases() {
           defendant_address: caseData.defendant_address || null,
           marriage_certificate_number:
             caseData.marriage_certificate_number || null,
+          relief_sought: caseData.relief_sought || null,
           status: caseData.lawyer_id ? "pending_lawyer_acceptance" : "draft",
           filing_date: new Date().toISOString(),
         })
