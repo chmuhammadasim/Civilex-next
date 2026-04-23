@@ -103,6 +103,7 @@ export type DocumentType =
   | "evidence"
   | "court_order"
   | "judgment"
+  | "final_arguments"
   | "application"
   | "fir_copy"
   | "power_of_attorney"

@@ -29,6 +29,7 @@ interface UploadDocumentModalProps {
     title: string,
     description?: string
   ) => Promise<{ error: string | null }>;
+  defaultDocType?: string;
 }
 
 function fileIcon(file: File) {
@@ -49,13 +50,14 @@ export default function UploadDocumentModal({
   isOpen,
   onClose,
   onUpload,
+  defaultDocType,
 }: UploadDocumentModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const [docType, setDocType] = useState("other");
+  const [docType, setDocType] = useState(defaultDocType ?? "other");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export default function UploadDocumentModal({
   const reset = () => {
     setFile(null);
     setFileError(null);
-    setDocType("other");
+    setDocType(defaultDocType ?? "other");
     setTitle("");
     setDescription("");
     setFormError(null);

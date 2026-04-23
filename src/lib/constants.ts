@@ -161,6 +161,7 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   evidence: "Evidence",
   court_order: "Court Order",
   judgment: "Judgment",
+  final_arguments: "Final Arguments",
   application: "Application",
   fir_copy: "FIR Copy",
   power_of_attorney: "Power of Attorney",

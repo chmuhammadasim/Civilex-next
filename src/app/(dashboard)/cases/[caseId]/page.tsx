@@ -96,6 +96,7 @@ export default function CaseDetailPage({
   const [docRequestError, setDocRequestError] = useState("");
   const [summonResult, setSummonResult] = useState<{ defendant_name: string; defendant_email: string | null; email_sent: boolean; notification_sent: boolean; register_url: string } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadModalDefaultDocType, setUploadModalDefaultDocType] = useState<string | undefined>(undefined);
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
@@ -907,6 +908,32 @@ export default function CaseDetailPage({
 
           {activeTab === "documents" && (
             <div className="space-y-4">
+              {/* Final Arguments prompt — shown to lawyers when case is in arguments phase */}
+              {isLawyer && caseData.status === "arguments" && (
+                <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h4 className="font-semibold text-primary">Submit Your Final Arguments</h4>
+                      <p className="mt-1 text-sm text-muted">
+                        The case is now in the final arguments phase. Upload your written arguments
+                        or memorandum of arguments as a document. Both sides will present their
+                        arguments before judgment is reserved.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => {
+                        setUploadModalDefaultDocType("final_arguments");
+                        setShowUploadModal(true);
+                      }}
+                    >
+                      Upload Final Arguments
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Pending document requests banner — shown to the client who must fulfil them */}
               {docRequests.filter((r) => r.requested_from === user?.id && r.status === "pending").length > 0 && (
                 <div className="rounded-lg border border-warning bg-amber-50 p-4">
@@ -1208,7 +1235,7 @@ export default function CaseDetailPage({
           {activeTab === "evidence" && showTrialTabs && (
             <EvidencePanel
               caseId={caseData.id}
-              isJudge={isTrialJudge || user?.role === "admin_court"}
+              isJudge={isTrialJudge || isMagistrate || user?.role === "admin_court"}
               isLawyer={isLawyer}
             />
           )}
@@ -1216,7 +1243,7 @@ export default function CaseDetailPage({
           {activeTab === "witnesses" && showTrialTabs && (
             <WitnessPanel
               caseId={caseData.id}
-              isJudge={isTrialJudge || user?.role === "admin_court"}
+              isJudge={isTrialJudge || isMagistrate || user?.role === "admin_court"}
               isLawyer={isLawyer}
               isStenographer={isStenographer}
             />
@@ -1225,7 +1252,7 @@ export default function CaseDetailPage({
           {activeTab === "judgment" && showTrialTabs && (
             <JudgmentPanel
               caseId={caseData.id}
-              isJudge={isTrialJudge || user?.role === "admin_court"}
+              isJudge={isTrialJudge || isMagistrate || user?.role === "admin_court"}
               caseStatus={status}
               onRefresh={refreshCase}
             />
@@ -1314,7 +1341,7 @@ export default function CaseDetailPage({
               caseId={caseData.id}
               caseStatus={status}
               canFrame={!!isCourtOfficial}
-              canDecide={!!(isTrialJudge || user?.role === "admin_court")}
+              canDecide={!!(isTrialJudge || isMagistrate || user?.role === "admin_court")}
             />
           )}
 
@@ -1350,7 +1377,11 @@ export default function CaseDetailPage({
       {/* Upload Document Modal */}
       <UploadDocumentModal
         isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
+        onClose={() => {
+          setShowUploadModal(false);
+          setUploadModalDefaultDocType(undefined);
+        }}
+        defaultDocType={uploadModalDefaultDocType}
         onUpload={async (file, docType, title, description) => {
           const result = await uploadDocument(caseId, file, docType, title, description);
           if (!result.error) refreshCase();

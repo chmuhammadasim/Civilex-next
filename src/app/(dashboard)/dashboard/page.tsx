@@ -338,6 +338,47 @@ export default function DashboardPage() {
               </Card>
             )}
 
+            {/* Defendant: Written statement phase notification */}
+            {role === "client" &&
+              cases.some(
+                (c) =>
+                  c.defendant_id === user?.id &&
+                  ["summon_issued", "preliminary_hearing", "notice_issued"].includes(c.status)
+              ) && (
+                <Card>
+                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-primary">
+                    <Scale className="h-5 w-5" />
+                    Written Statement Required
+                  </h3>
+                  <div className="space-y-3">
+                    {cases
+                      .filter(
+                        (c) =>
+                          c.defendant_id === user?.id &&
+                          ["summon_issued", "preliminary_hearing", "notice_issued"].includes(c.status)
+                      )
+                      .map((c) => (
+                        <div
+                          key={c.id}
+                          className="rounded-lg border border-border p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <p className="font-medium">{c.title}</p>
+                            <p className="text-xs text-muted">
+                              {c.case_number} • Your lawyer must file a written statement
+                            </p>
+                          </div>
+                          <Link href={`/cases/${c.id}?tab=written_statement`}>
+                            <Button size="sm" variant="outline">
+                              View Written Statement
+                            </Button>
+                          </Link>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+              )}
+
             {/* Defendant: Pending lawyer fee payments */}
             {role === "client" && payments.some((p) => p.payer_id === user?.id && p.status === "pending") && (
               <Card>

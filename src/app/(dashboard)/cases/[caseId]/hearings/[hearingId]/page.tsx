@@ -69,13 +69,15 @@ export default function HearingDetailPage({
   const isAssignedStenographer =
     isStenographer && caseData?.stenographer_id === user?.id;
   const canEditProceedings = isStenographer || isCourtOfficial;
-  const canIssueOrders = isCourtOfficial;
   // Transcript: the assigned stenographer can edit & sign; court officials can edit draft but not sign.
   const canEditTranscript = !!(isAssignedStenographer || isCourtOfficial);
   const canSignTranscript = !!isAssignedStenographer;
   // Reader-style actions: the assigned steno (acting as reader/ahlmad) and
   // court officials can call cases, adjourn hearings, and set next dates.
   const canManageHearing = !!(isCourtOfficial || isAssignedStenographer);
+  // Stenographer types up the judge's dictated order after each hearing.
+  // Court officials (judges) create orders too; steno must be able to type them.
+  const canIssueOrders = !!(isCourtOfficial || isAssignedStenographer);
 
   if (isLoading) {
     return (
