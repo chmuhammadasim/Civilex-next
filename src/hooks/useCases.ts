@@ -25,7 +25,12 @@ export function useCases() {
           defendant:profiles!defendant_id(id, full_name, email),
           assignments:case_assignments(
             id, lawyer_id, side, status, fee_amount,
+            allow_installments, installment_count,
             lawyer:profiles!lawyer_id(id, full_name, email)
+          ),
+          criminal_details:criminal_case_details(
+            id, fir_number, police_station, bail_status,
+            offense_description, offense_section
           )
         `)
         .order("created_at", { ascending: false });
