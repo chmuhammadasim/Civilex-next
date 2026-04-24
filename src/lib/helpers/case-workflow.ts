@@ -111,6 +111,8 @@ export const ROLE_ALLOWED_TRANSITIONS: Record<Role, CaseStatus[]> = {
     CASE_STATUS.WITHDRAWN,
   ],
   trial_judge: [
+    CASE_STATUS.REGISTERED,               // lift a stay order (stayed → registered)
+    CASE_STATUS.TRANSFERRED_TO_TRIAL,     // resume after remand
     CASE_STATUS.EVIDENCE_STAGE,
     CASE_STATUS.ARGUMENTS,
     CASE_STATUS.RESERVED_FOR_JUDGMENT,

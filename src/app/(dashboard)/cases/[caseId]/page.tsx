@@ -146,13 +146,16 @@ export default function CaseDetailPage({
   const showScrutinyTab = isCourtOfficial || [
     "submitted_to_admin", "under_scrutiny", "returned_for_revision", "registered",
     "summon_issued", "preliminary_hearing", "issues_framed", "transferred_to_trial",
+    "stayed", "withdrawn",
   ].includes(status);
 
-  // Show hearings tab when case is past registration
+  // Show hearings tab when case is past registration (incl. any terminal branches)
   const showHearingsTab = [
     "registered", "summon_issued", "preliminary_hearing", "issues_framed",
     "transferred_to_trial", "evidence_stage", "arguments",
-    "reserved_for_judgment", "judgment_delivered", "closed",
+    "reserved_for_judgment", "judgment_delivered",
+    "stayed", "remanded", "under_execution", "satisfied", "appeal_filed",
+    "closed", "withdrawn", "disposed",
   ].includes(status);
 
   // Show bail and investigation tabs for criminal cases
@@ -162,10 +165,12 @@ export default function CaseDetailPage({
   const isStenographer = user?.role === "stenographer";
   const criminalDetails = caseData.criminal_details as CriminalCaseDetailsExtended | null;
 
-  // Show trial court tabs (evidence, witnesses, judgment) when case is in trial phase
+  // Show trial court tabs (evidence, witnesses, judgment) when case is in trial phase or post-judgment
   const showTrialTabs = [
     "transferred_to_trial", "evidence_stage", "arguments",
-    "reserved_for_judgment", "judgment_delivered", "closed",
+    "reserved_for_judgment", "judgment_delivered",
+    "remanded", "under_execution", "satisfied", "appeal_filed",
+    "closed",
   ].includes(status);
 
   // Show issues tab once the case reaches preliminary hearing. Stays visible
@@ -1613,10 +1618,10 @@ export default function CaseDetailPage({
       {showWithdrawDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 w-full max-w-sm rounded-xl border border-border bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-foreground">Remove Case?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">Withdraw Case?</h3>
             <p className="text-sm text-muted">
-              This will permanently archive &ldquo;{caseData.title}&rdquo;. It will no longer appear
-              in your active cases and cannot be reactivated.
+              This will withdraw &ldquo;{caseData.title}&rdquo; from proceedings. The case will be
+              marked as <strong>Withdrawn</strong> and no further actions can be taken on it.
             </p>
             {withdrawError && (
               <div className="mt-3 rounded-lg border border-danger bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -1646,7 +1651,7 @@ export default function CaseDetailPage({
                 }}
               >
                 <Trash2 className="h-4 w-4" />
-                Yes, Remove
+                Yes, Withdraw
               </Button>
             </div>
           </div>
