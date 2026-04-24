@@ -8,13 +8,15 @@ Next.js 16 + TypeScript + Supabase app for managing civil, criminal, and family 
 - Next.js 16.1.6 (App Router), React 19, TypeScript 5
 - Supabase (PostgreSQL + Auth + Realtime + Storage)
 - Tailwind CSS 4, Zod 4, lucide-react
+- OpenAI GPT-4o-mini (AI document drafting)
 
 ## Key Patterns
 - Auth: Supabase Auth + middleware session refresh + role verification on login
-- Data: Custom React hooks (useCases, usePayments, etc.) calling Supabase client directly
+- Data: Custom React hooks (useCases, usePayments, useAIDrafting, etc.) calling Supabase client directly
 - RLS: All 18 tables have Row Level Security policies
 - Providers: AuthProvider (auth state), NotificationProvider (realtime)
 - Validation: Zod schemas in src/lib/validations/
+- AI: OpenAI API integration for legal document drafting (evidence, affidavits, applications, etc.)
 
 ## Test Stack
 - **E2E:** Playwright (to be installed)
