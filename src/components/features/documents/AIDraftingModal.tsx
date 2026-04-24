@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import { useAIDrafting, type CaseContext } from "@/hooks/useAIDrafting";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/constants";
-import { Sparkles, Copy, Download, FileText, Loader2, CheckCircle2 } from "lucide-react";
+import { Sparkles, Copy, Download, FileText, CheckCircle2 } from "lucide-react";
 
 const DOC_TYPE_OPTIONS = Object.entries(DOCUMENT_TYPE_LABELS)
   .filter(([key]) =>
@@ -42,10 +42,6 @@ export default function AIDraftingModal({
   const [draftedDocument, setDraftedDocument] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (defaultDocType) setDocumentType(defaultDocType);
-  }, [defaultDocType]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -105,6 +101,7 @@ export default function AIDraftingModal({
     setDraftedDocument(null);
     setError(null);
     setCopied(false);
+    setDocumentType(defaultDocType ?? "other");
     onClose();
   };
 
@@ -113,7 +110,7 @@ export default function AIDraftingModal({
       isOpen={isOpen}
       onClose={handleClose}
       title="✨ AI Document Drafting"
-      size="xl"
+      className="max-w-4xl"
     >
       <div className="space-y-4">
         {/* Step 1: Choose document type and describe */}
