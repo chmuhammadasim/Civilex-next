@@ -168,11 +168,11 @@ export async function getCaseParticipantEmails(
     }));
 
   return {
-    plaintiffEmail: (caseData.plaintiff as { email: string } | null)?.email || null,
-    defendantEmail: (caseData.defendant as { email: string } | null)?.email || null,
+    plaintiffEmail: (caseData.plaintiff as any)?.email || null,
+    defendantEmail: (caseData.defendant as any)?.email || null,
     lawyerEmails,
-    judgeEmail: (caseData.judge as { email: string } | null)?.email || null,
-    stenographerEmail: (caseData.stenographer as { email: string } | null)?.email || null,
+    judgeEmail: (caseData.judge as any)?.email || null,
+    stenographerEmail: (caseData.stenographer as any)?.email || null,
   };
 }
 
