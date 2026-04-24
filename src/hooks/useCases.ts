@@ -938,28 +938,47 @@ export function useCases() {
   const withdrawCase = async (caseId: string) => {
     if (!user) return { error: "Not authenticated" };
 
+    // Pre-judgment statuses from which a case can be withdrawn
+    const withdrawableStatuses = [
+      "draft",
+      "pending_lawyer_acceptance",
+      "payment_pending",
+      "payment_confirmed",
+      "drafting",
+      "submitted_to_admin",
+      "under_scrutiny",
+      "returned_for_revision",
+      "registered",
+      "summon_issued",
+      "preliminary_hearing",
+      "issues_framed",
+      "transferred_to_trial",
+      "evidence_stage",
+      "arguments",
+      "reserved_for_judgment",
+      "stayed",
+    ] as const;
+
     try {
       const supabase = createClient();
 
-      // Only allow withdrawal for cases the user owns that are in draft or
-      // had a declined lawyer assignment (pending_lawyer_acceptance with all declined)
       const { data: updated, error } = await supabase
         .from("cases")
-        .update({ status: "disposed" })
+        .update({ status: "withdrawn" })
         .eq("id", caseId)
         .eq("plaintiff_id", user.id)
-        .in("status", ["draft", "pending_lawyer_acceptance"])
+        .in("status", withdrawableStatuses)
         .select("id")
         .maybeSingle();
 
       if (error) return { error: error.message };
-      if (!updated) return { error: "Could not remove case. You may not have permission, or the case is no longer in a removable state." };
+      if (!updated) return { error: "Could not withdraw case. You may not have permission, or the case is in a non-withdrawable state." };
 
       await supabase.from("case_activity_log").insert({
         case_id: caseId,
         actor_id: user.id,
         action: "status_changed",
-        details: { new_status: "disposed", old_status: "withdrawn_by_client" },
+        details: { new_status: "withdrawn", action: "case_withdrawn_by_client" },
       });
 
       await fetchCases();

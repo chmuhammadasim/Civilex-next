@@ -55,6 +55,9 @@ import {
   Users2,
   MessageSquareText,
   Trash2,
+  CheckCircle2,
+  RotateCcw,
+  PauseCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -170,15 +173,18 @@ export default function CaseDetailPage({
   const showIssuesTab = [
     "preliminary_hearing", "issues_framed", "transferred_to_trial",
     "evidence_stage", "arguments", "reserved_for_judgment",
-    "judgment_delivered", "closed", "disposed",
+    "judgment_delivered", "under_execution", "satisfied",
+    "appeal_filed", "remanded", "closed", "disposed",
   ].includes(status);
 
   const showDecreeTab = [
-    "judgment_delivered", "closed", "disposed",
+    "judgment_delivered", "under_execution", "satisfied",
+    "appeal_filed", "closed", "disposed",
   ].includes(status);
 
   const showAppealTab = [
-    "judgment_delivered", "closed", "disposed",
+    "judgment_delivered", "under_execution", "satisfied",
+    "appeal_filed", "closed", "disposed",
   ].includes(status);
 
   const showExecutionTab =
@@ -188,6 +194,7 @@ export default function CaseDetailPage({
   const showWrittenStatementTab = [
     "summon_issued", "preliminary_hearing", "issues_framed", "transferred_to_trial",
     "evidence_stage", "arguments", "reserved_for_judgment", "judgment_delivered",
+    "under_execution", "satisfied", "appeal_filed", "remanded",
     "closed", "disposed",
   ].includes(status);
 
@@ -609,6 +616,113 @@ export default function CaseDetailPage({
               </Button>
             )}
 
+            {/* Court Official / Trial Judge: Start decree execution */}
+            {isCourtOfficial && status === "judgment_delivered" && (
+              <Button
+                size="sm"
+                variant="primary"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "under_execution", status))
+                }
+              >
+                <ArrowRightCircle className="h-4 w-4" />
+                Start Execution
+              </Button>
+            )}
+
+            {/* Court Official / Trial Judge: Mark decree satisfied */}
+            {isCourtOfficial && status === "under_execution" && (
+              <Button
+                size="sm"
+                variant="primary"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "satisfied", status))
+                }
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Mark Satisfied
+              </Button>
+            )}
+
+            {/* Trial Judge / Admin: Remand case for retrial */}
+            {isCourtOfficial && status === "judgment_delivered" && (
+              <Button
+                size="sm"
+                variant="warning"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "remanded", status))
+                }
+              >
+                <RotateCcw className="h-4 w-4" />
+                Remand to Trial
+              </Button>
+            )}
+
+            {/* Court Official: Re-start trial after remand */}
+            {isCourtOfficial && status === "remanded" && (
+              <Button
+                size="sm"
+                variant="primary"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "transferred_to_trial", status))
+                }
+              >
+                <ArrowRightCircle className="h-4 w-4" />
+                Transfer to Trial (Retrial)
+              </Button>
+            )}
+
+            {/* Court Official: Stay case proceedings */}
+            {isCourtOfficial &&
+              ["registered", "summon_issued", "preliminary_hearing", "issues_framed",
+               "transferred_to_trial", "evidence_stage", "arguments"].includes(status) && (
+              <Button
+                size="sm"
+                variant="warning"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "stayed", status))
+                }
+              >
+                <PauseCircle className="h-4 w-4" />
+                Stay Proceedings
+              </Button>
+            )}
+
+            {/* Court Official: Lift stay — resume at registered */}
+            {isCourtOfficial && status === "stayed" && (
+              <Button
+                size="sm"
+                variant="primary"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "registered", status))
+                }
+              >
+                <ArrowRightCircle className="h-4 w-4" />
+                Lift Stay
+              </Button>
+            )}
+
+            {/* Client / Lawyer: File appeal after closure */}
+            {(user?.role === "client" || user?.role === "lawyer") && status === "closed" && (
+              <Button
+                size="sm"
+                variant="outline"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "appeal_filed", status))
+                }
+              >
+                <Scale className="h-4 w-4" />
+                File Appeal
+              </Button>
+            )}
+
             {/* Trial Tabs shortcuts */}
             {showTrialTabs && (
               <>
@@ -641,20 +755,24 @@ export default function CaseDetailPage({
               </Link>
             )}
 
-            {/* Client: Remove / Withdraw case (draft or all-declined) */}
+            {/* Client: Withdraw case (any pre-judgment status) */}
             {user?.role === "client" &&
               user.id === caseData.plaintiff_id &&
-              (status === "draft" ||
-                (status === "pending_lawyer_acceptance" &&
-                  caseData.assignments?.length &&
-                  caseData.assignments.every((a) => a.status === "declined"))) && (
+              [
+                "draft", "pending_lawyer_acceptance", "payment_pending",
+                "payment_confirmed", "drafting", "submitted_to_admin",
+                "under_scrutiny", "returned_for_revision", "registered",
+                "summon_issued", "preliminary_hearing", "issues_framed",
+                "transferred_to_trial", "evidence_stage", "arguments",
+                "reserved_for_judgment", "stayed",
+              ].includes(status) && (
                 <Button
                   size="sm"
                   variant="danger"
                   onClick={() => setShowWithdrawDialog(true)}
                 >
                   <Trash2 className="h-4 w-4" />
-                  Remove Case
+                  Withdraw Case
                 </Button>
               )}
           </div>

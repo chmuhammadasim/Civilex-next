@@ -143,20 +143,32 @@ draft
                           │     └─► under_scrutiny
                           │           ├─► returned_for_revision → drafting
                           │           └─► registered
+                          │                 ├─► stayed ──────────────────► registered  (stay lifted)
                           │                 └─► summon_issued
+                          │                       ├─► stayed ─────────────► registered
                           │                       └─► preliminary_hearing
+                          │                             ├─► stayed ─────────► registered
                           │                             ├─► disposed    (alternative terminal)
                           │                             └─► issues_framed
+                          │                                   ├─► stayed ──────► registered
                           │                                   └─► transferred_to_trial
+                          │                                         ├─► stayed ──► registered
                           │                                         └─► evidence_stage
+                          │                                               ├─► stayed ──► registered
                           │                                               └─► arguments
+                          │                                                     ├─► stayed ──► registered
                           │                                                     └─► reserved_for_judgment
                           │                                                           └─► judgment_delivered
-                          │                                                                 └─► closed ✓
+                          │                                                                 ├─► remanded → transferred_to_trial  (retrial)
+                          │                                                                 ├─► under_execution → satisfied ✓    (decree path)
+                          │                                                                 └─► closed
+                          │                                                                       └─► appeal_filed ✓
                           └─► returned_for_revision                                 (direct admin return)
 ```
 
-**All 20 statuses:** `draft` · `pending_lawyer_acceptance` · `payment_pending` · `payment_confirmed` · `drafting` · `submitted_to_admin` · `under_scrutiny` · `returned_for_revision` · `registered` · `summon_issued` · `preliminary_hearing` · `issues_framed` · `transferred_to_trial` · `evidence_stage` · `arguments` · `reserved_for_judgment` · `judgment_delivered` · `closed` · `disposed` · ~~`lawyer_accepted`~~ *(defined but never set — dead status)*
+**Withdrawal (any pre-judgment status):** any status from `draft` through `reserved_for_judgment` (incl. `stayed`) → `withdrawn` ✓
+
+**All 26 statuses:** `draft` · `pending_lawyer_acceptance` · `payment_pending` · `payment_confirmed` · `drafting` · `submitted_to_admin` · `under_scrutiny` · `returned_for_revision` · `registered` · `stayed` · `summon_issued` · `preliminary_hearing` · `issues_framed` · `transferred_to_trial` · `evidence_stage` · `arguments` · `reserved_for_judgment` · `judgment_delivered` · `under_execution` · `satisfied` · `remanded` · `appeal_filed` · `closed` · `withdrawn` · `disposed` · ~~`lawyer_accepted`~~ *(defined but never set — dead status)*
 
 ---
 

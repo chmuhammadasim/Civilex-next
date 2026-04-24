@@ -3,7 +3,7 @@
 import { CASE_STATUS, CASE_STATUS_LABELS, type CaseStatus } from "@/lib/constants";
 import { CheckCircle, Circle, Clock, AlertCircle } from "lucide-react";
 
-/** Ordered steps of the case lifecycle */
+/** Ordered steps of the case lifecycle (main/happy path) */
 const STATUS_STEPS: CaseStatus[] = [
   CASE_STATUS.DRAFT,
   CASE_STATUS.PENDING_LAWYER_ACCEPTANCE,
@@ -21,13 +21,19 @@ const STATUS_STEPS: CaseStatus[] = [
   CASE_STATUS.ARGUMENTS,
   CASE_STATUS.RESERVED_FOR_JUDGMENT,
   CASE_STATUS.JUDGMENT_DELIVERED,
+  CASE_STATUS.UNDER_EXECUTION,
+  CASE_STATUS.SATISFIED,
   CASE_STATUS.CLOSED,
 ];
 
-/** Statuses that indicate a problem / deviation */
+/** Statuses that indicate a problem / deviation / terminal branch */
 const PROBLEM_STATUSES: CaseStatus[] = [
   CASE_STATUS.RETURNED_FOR_REVISION,
+  CASE_STATUS.STAYED,
   CASE_STATUS.DISPOSED,
+  CASE_STATUS.WITHDRAWN,
+  CASE_STATUS.REMANDED,
+  CASE_STATUS.APPEAL_FILED,
 ];
 
 interface CaseStatusStepperProps {

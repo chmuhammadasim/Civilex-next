@@ -11,29 +11,51 @@ import { CASE_STATUS } from "@/lib/constants";
 
 /** Map of every status to the statuses it may transition TO. */
 export const VALID_TRANSITIONS: Record<CaseStatus, CaseStatus[]> = {
-  draft: [CASE_STATUS.PENDING_LAWYER_ACCEPTANCE],
+  // ── Pre-registration ────────────────────────────────────────────────
+  draft: [CASE_STATUS.PENDING_LAWYER_ACCEPTANCE, CASE_STATUS.WITHDRAWN],
   pending_lawyer_acceptance: [
-    CASE_STATUS.PAYMENT_PENDING,   // lawyer accepted
-    CASE_STATUS.DRAFT,             // lawyer declined → revert
+    CASE_STATUS.PAYMENT_PENDING,         // lawyer accepted
+    CASE_STATUS.DRAFT,                   // lawyer declined → revert
+    CASE_STATUS.WITHDRAWN,               // client withdraws
   ],
-  lawyer_accepted: [CASE_STATUS.PAYMENT_PENDING],
-  payment_pending: [CASE_STATUS.PAYMENT_CONFIRMED],
-  payment_confirmed: [CASE_STATUS.DRAFTING],
-  drafting: [CASE_STATUS.SUBMITTED_TO_ADMIN],
-  submitted_to_admin: [CASE_STATUS.UNDER_SCRUTINY, CASE_STATUS.RETURNED_FOR_REVISION],
-  under_scrutiny: [CASE_STATUS.REGISTERED, CASE_STATUS.RETURNED_FOR_REVISION],
-  returned_for_revision: [CASE_STATUS.DRAFTING],
-  registered: [CASE_STATUS.SUMMON_ISSUED],
-  summon_issued: [CASE_STATUS.PRELIMINARY_HEARING],
-  preliminary_hearing: [CASE_STATUS.ISSUES_FRAMED, CASE_STATUS.DISPOSED],
-  issues_framed: [CASE_STATUS.TRANSFERRED_TO_TRIAL],
-  transferred_to_trial: [CASE_STATUS.EVIDENCE_STAGE],
-  evidence_stage: [CASE_STATUS.ARGUMENTS],
-  arguments: [CASE_STATUS.RESERVED_FOR_JUDGMENT],
+  lawyer_accepted: [CASE_STATUS.PAYMENT_PENDING, CASE_STATUS.WITHDRAWN],
+  payment_pending: [CASE_STATUS.PAYMENT_CONFIRMED, CASE_STATUS.WITHDRAWN],
+  payment_confirmed: [CASE_STATUS.DRAFTING, CASE_STATUS.WITHDRAWN],
+  drafting: [CASE_STATUS.SUBMITTED_TO_ADMIN, CASE_STATUS.WITHDRAWN],
+  submitted_to_admin: [CASE_STATUS.UNDER_SCRUTINY, CASE_STATUS.RETURNED_FOR_REVISION, CASE_STATUS.WITHDRAWN],
+  under_scrutiny: [CASE_STATUS.REGISTERED, CASE_STATUS.RETURNED_FOR_REVISION, CASE_STATUS.WITHDRAWN],
+  returned_for_revision: [CASE_STATUS.DRAFTING, CASE_STATUS.WITHDRAWN],
+
+  // ── Admin Court ──────────────────────────────────────────────────────
+  registered: [CASE_STATUS.SUMMON_ISSUED, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
+  summon_issued: [CASE_STATUS.PRELIMINARY_HEARING, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
+  preliminary_hearing: [CASE_STATUS.ISSUES_FRAMED, CASE_STATUS.DISPOSED, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
+  issues_framed: [CASE_STATUS.TRANSFERRED_TO_TRIAL, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
+
+  // ── Stay order: can be lifted and resume ────────────────────────────
+  stayed: [CASE_STATUS.REGISTERED],     // stay lifted → back to registered
+
+  // ── Trial Court ──────────────────────────────────────────────────────
+  transferred_to_trial: [CASE_STATUS.EVIDENCE_STAGE, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
+  evidence_stage: [CASE_STATUS.ARGUMENTS, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
+  arguments: [CASE_STATUS.RESERVED_FOR_JUDGMENT, CASE_STATUS.STAYED, CASE_STATUS.WITHDRAWN],
   reserved_for_judgment: [CASE_STATUS.JUDGMENT_DELIVERED],
-  judgment_delivered: [CASE_STATUS.CLOSED],
-  closed: [],
+
+  // ── Post-judgment ────────────────────────────────────────────────────
+  judgment_delivered: [
+    CASE_STATUS.CLOSED,
+    CASE_STATUS.UNDER_EXECUTION,         // decree enforcement starts
+    CASE_STATUS.REMANDED,                // appellate court sends back for retrial
+  ],
+  under_execution: [CASE_STATUS.SATISFIED], // decree fully executed
+  satisfied: [],                         // terminal
+  remanded: [CASE_STATUS.TRANSFERRED_TO_TRIAL], // retrial starts at trial court
+  closed: [CASE_STATUS.APPEAL_FILED],    // party files appeal
+  appeal_filed: [],                      // terminal (handled by appeal records table)
+
+  // ── Terminal states ──────────────────────────────────────────────────
   disposed: [],
+  withdrawn: [],
 };
 
 /**
@@ -52,10 +74,14 @@ export const ROLE_ALLOWED_TRANSITIONS: Record<Role, CaseStatus[]> = {
     CASE_STATUS.PENDING_LAWYER_ACCEPTANCE, // submit to lawyer
     CASE_STATUS.SUBMITTED_TO_ADMIN,        // submit to admin after drafting
     CASE_STATUS.DRAFTING,                  // revert after revision
+    CASE_STATUS.WITHDRAWN,                 // withdraw own case
+    CASE_STATUS.APPEAL_FILED,             // file appeal after closure
   ],
   lawyer: [
     CASE_STATUS.PAYMENT_PENDING,           // accept case
     CASE_STATUS.DRAFT,                     // decline (revert)
+    CASE_STATUS.WITHDRAWN,                 // withdraw on behalf of client
+    CASE_STATUS.APPEAL_FILED,             // file appeal on behalf of client
   ],
   admin_court: [
     CASE_STATUS.UNDER_SCRUTINY,
@@ -65,7 +91,12 @@ export const ROLE_ALLOWED_TRANSITIONS: Record<Role, CaseStatus[]> = {
     CASE_STATUS.PRELIMINARY_HEARING,
     CASE_STATUS.ISSUES_FRAMED,
     CASE_STATUS.TRANSFERRED_TO_TRIAL,
+    CASE_STATUS.STAYED,
     CASE_STATUS.DISPOSED,
+    CASE_STATUS.WITHDRAWN,
+    CASE_STATUS.UNDER_EXECUTION,
+    CASE_STATUS.SATISFIED,
+    CASE_STATUS.REMANDED,
   ],
   magistrate: [
     CASE_STATUS.UNDER_SCRUTINY,
@@ -75,14 +106,20 @@ export const ROLE_ALLOWED_TRANSITIONS: Record<Role, CaseStatus[]> = {
     CASE_STATUS.PRELIMINARY_HEARING,
     CASE_STATUS.ISSUES_FRAMED,
     CASE_STATUS.TRANSFERRED_TO_TRIAL,
+    CASE_STATUS.STAYED,
     CASE_STATUS.DISPOSED,
+    CASE_STATUS.WITHDRAWN,
   ],
   trial_judge: [
     CASE_STATUS.EVIDENCE_STAGE,
     CASE_STATUS.ARGUMENTS,
     CASE_STATUS.RESERVED_FOR_JUDGMENT,
     CASE_STATUS.JUDGMENT_DELIVERED,
+    CASE_STATUS.UNDER_EXECUTION,
+    CASE_STATUS.SATISFIED,
+    CASE_STATUS.REMANDED,
     CASE_STATUS.CLOSED,
+    CASE_STATUS.STAYED,
     CASE_STATUS.DISPOSED,
   ],
   stenographer: [], // read-only; no status transitions
@@ -128,17 +165,23 @@ export const CASE_PHASES = {
     CASE_STATUS.SUMMON_ISSUED,
     CASE_STATUS.PRELIMINARY_HEARING,
     CASE_STATUS.ISSUES_FRAMED,
+    CASE_STATUS.STAYED,
   ],
   trial_court: [
     CASE_STATUS.TRANSFERRED_TO_TRIAL,
     CASE_STATUS.EVIDENCE_STAGE,
     CASE_STATUS.ARGUMENTS,
     CASE_STATUS.RESERVED_FOR_JUDGMENT,
+    CASE_STATUS.REMANDED,
   ],
   concluded: [
     CASE_STATUS.JUDGMENT_DELIVERED,
+    CASE_STATUS.UNDER_EXECUTION,
+    CASE_STATUS.SATISFIED,
+    CASE_STATUS.APPEAL_FILED,
     CASE_STATUS.CLOSED,
     CASE_STATUS.DISPOSED,
+    CASE_STATUS.WITHDRAWN,
   ],
 } as const;
 
