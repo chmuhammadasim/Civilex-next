@@ -157,7 +157,7 @@ export function useDocuments(caseId: string) {
       // Patch local state so UI updates without a full refetch
       setDocuments((prev) =>
         prev.map((d) =>
-          d.id === documentId ? { ...d, ...updates } : d
+          d.id === documentId ? ({ ...d, ...updates } as CaseDocument) : d
         )
       );
       return { error: null };

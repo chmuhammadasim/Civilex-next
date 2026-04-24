@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
 import OtpSignatureModal from "@/components/features/signatures/OtpSignatureModal";
+import EditDocumentModal from "@/components/features/documents/EditDocumentModal";
 import type { CaseDocument } from "@/types/case";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
@@ -22,6 +23,7 @@ import {
   User,
   AlertTriangle,
   Loader2,
+  Pencil,
 } from "lucide-react";
 
 /* ── Permission model ───────────────────────────────────────────────── */
@@ -48,6 +50,7 @@ interface DocumentListProps {
   /** Called when user clicks "Upload" — parent opens upload modal */
   onUploadClick?: () => void;
   onDelete?: (documentId: string, filePath: string) => Promise<{ error: string | null }>;
+  onEdit?: (documentId: string, updates: { title: string; description: string; document_type: string }) => Promise<{ error: string | null }>;
   onGetUrl?: (filePath: string) => Promise<string | null>;
   onRefresh?: () => void;
 }
@@ -63,6 +66,12 @@ function canDeleteDoc(doc: CaseDocument, p: DocumentPermissions): boolean {
   if (p.role === "admin_court") return true; // admin deletes any
   if (p.role === "client" || p.role === "stenographer") return false;
   return doc.uploaded_by === p.currentUserId; // lawyers/judges: own only
+}
+
+function canEditDoc(doc: CaseDocument, p: DocumentPermissions): boolean {
+  if (p.role === "admin_court") return true;
+  if (p.role === "stenographer" || p.role === "client") return false;
+  return doc.uploaded_by === p.currentUserId;
 }
 
 function canSignDocs(p: DocumentPermissions): boolean {
@@ -98,6 +107,7 @@ export default function DocumentList({
   permissions,
   onUploadClick,
   onDelete,
+  onEdit,
   onGetUrl,
   onRefresh,
 }: DocumentListProps) {
@@ -108,6 +118,7 @@ export default function DocumentList({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [editingDoc, setEditingDoc] = useState<CaseDocument | null>(null);
 
   const uploadAllowed = canUpload(permissions);
 
@@ -201,6 +212,7 @@ export default function DocumentList({
             {documents.map((doc) => {
               const isOwn = doc.uploaded_by === permissions.currentUserId;
               const canDel = canDeleteDoc(doc, permissions);
+              const canEdit = canEditDoc(doc, permissions) && !!onEdit;
               const canSig = canSignDocs(permissions) && !doc.is_signed;
               const isDeleting = deletingId === doc.id;
               const isDownloading = downloadingId === doc.id;
@@ -298,6 +310,17 @@ export default function DocumentList({
                         <Download className="h-4 w-4" />
                       )}
                     </Button>
+
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Edit"
+                        onClick={() => setEditingDoc(doc)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
 
                     {canSig && (
                       <Button
@@ -436,6 +459,20 @@ export default function DocumentList({
           onSigned={() => {
             setSigningDoc(null);
             onRefresh?.();
+          }}
+        />
+      )}
+
+      {/* ── Edit Document Modal ─────────────────────────────────────── */}
+      {editingDoc && onEdit && (
+        <EditDocumentModal
+          document={editingDoc}
+          isOpen
+          onClose={() => setEditingDoc(null)}
+          onSave={async (id, updates) => {
+            const result = await onEdit(id, updates);
+            if (!result.error) setEditingDoc(null);
+            return result;
           }}
         />
       )}

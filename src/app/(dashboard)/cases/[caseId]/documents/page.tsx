@@ -26,6 +26,7 @@ export default function CaseDocumentsPage({
     documents,
     isLoading: docsLoading,
     uploadDocument,
+    updateDocument,
     deleteDocument,
     getDocumentUrl,
     refresh,
@@ -80,6 +81,7 @@ export default function CaseDocumentsPage({
           permissions={{ role, currentUserId: user.id, isAssignedLawyer }}
           onUploadClick={() => setShowUploadModal(true)}
           onDelete={deleteDocument}
+          onEdit={updateDocument}
           onGetUrl={getDocumentUrl}
           onRefresh={refresh}
         />
