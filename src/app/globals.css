@@ -21,6 +21,28 @@
   --muted: #8A8578;
 }
 
+/* Dark theme colors */
+.dark {
+  --background: #0F172A;
+  --foreground: #F1F5F9;
+  --primary: #10B981;
+  --primary-light: #34D399;
+  --primary-dark: #059669;
+  --cream: #1E293B;
+  --cream-dark: #334155;
+  --cream-light: #1E293B;
+  --accent: #FBBF24;
+  --danger: #EF4444;
+  --danger-light: #7F1D1D;
+  --success: #10B981;
+  --success-light: #064E3B;
+  --warning: #F59E0B;
+  --warning-light: #78350F;
+  --info: #06B6D4;
+  --border: #334155;
+  --muted: #94A3B8;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -64,6 +86,10 @@ body {
   border-radius: 3px;
 }
 
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-light);
+}
+
 /* Focus ring utility */
 .focus-ring {
   outline: none;
@@ -71,4 +97,9 @@ body {
 
 .focus-ring:focus-visible {
   box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px var(--primary);
+}
+
+/* Smooth theme transition */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }

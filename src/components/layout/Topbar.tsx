@@ -3,6 +3,8 @@
 import { MessageSquare, User, Menu } from "lucide-react";
 import Link from "next/link";
 import NotificationBell from "@/components/features/notifications/NotificationBell";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+
 
 interface TopbarProps {
   title: string;
@@ -17,6 +19,8 @@ export default function Topbar({ title, onMenuToggle }: TopbarProps) {
           <button
             onClick={onMenuToggle}
             className="rounded-lg p-2 text-foreground hover:bg-cream-dark lg:hidden"
+            title="Toggle menu"
+            aria-label="Toggle menu"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -25,13 +29,18 @@ export default function Topbar({ title, onMenuToggle }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Link
           href="/settings"
           className="rounded-lg p-2 text-muted hover:bg-cream-dark hover:text-foreground transition-colors"
         >
           <User className="h-5 w-5" />
         </Link>
-        <button className="rounded-lg p-2 text-muted hover:bg-cream-dark hover:text-foreground transition-colors">
+        <button
+          className="rounded-lg p-2 text-muted hover:bg-cream-dark hover:text-foreground transition-colors"
+          title="Messages"
+          aria-label="Messages"
+        >
           <MessageSquare className="h-5 w-5" />
         </button>
         <NotificationBell />
