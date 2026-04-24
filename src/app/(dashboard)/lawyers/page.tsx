@@ -163,6 +163,7 @@ export default function LawyersPage() {
                     <select
                       className="w-full rounded-lg border border-border px-3 py-2 text-sm"
                       value={selectedCaseId}
+                      title="Select Case"
                       onChange={(e) => setSelectedCaseId(e.target.value)}
                     >
                       <option value="">— Choose a case —</option>

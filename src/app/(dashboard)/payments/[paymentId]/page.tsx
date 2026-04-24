@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import PaymentForm from "@/components/features/payments/PaymentForm";
 import PaymentReceipt from "@/components/features/payments/PaymentReceipt";
+import InstallmentPlan from "@/components/features/payments/InstallmentPlan";
 import { usePayments } from "@/hooks/usePayments";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
@@ -255,43 +256,19 @@ export default function PaymentDetailPage({
               </div>
             </Card>
 
-            {/* Instalment tracker */}
-            {isInstallment && (
-              <Card>
-                <h2 className="mb-4 text-sm font-semibold text-foreground uppercase tracking-wide">
-                  Instalment Progress
-                </h2>
-                <div className="space-y-2">
-                  {Array.from({ length: payment.total_installments }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div
-                        className={[
-                          "h-6 w-6 rounded-full border-2 flex items-center justify-center text-xs font-bold",
-                          i + 1 < payment.installment_number
-                            ? "border-success bg-success text-white"
-                            : i + 1 === payment.installment_number
-                            ? payment.status === "completed"
-                              ? "border-success bg-success text-white"
-                              : "border-warning bg-warning/10 text-warning"
-                            : "border-border bg-cream-light text-muted",
-                        ].join(" ")}
-                      >
-                        {i + 1 < payment.installment_number ||
-                        (i + 1 === payment.installment_number && payment.status === "completed")
-                          ? "✓"
-                          : i + 1}
-                      </div>
-                      <span className="text-sm text-foreground">
-                        Instalment {i + 1}
-                        {i + 1 === payment.installment_number && payment.status !== "completed"
-                          ? " (current)"
-                          : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+            {/* Instalment plan */}
+            {isInstallment && (() => {
+              // Collect all sibling instalments from the payments list
+              const siblings = payments.filter(
+                (p) =>
+                  p.is_installment &&
+                  p.case_id === payment.case_id &&
+                  p.payment_type === payment.payment_type
+              );
+              return siblings.length > 0 ? (
+                <InstallmentPlan payments={siblings} />
+              ) : null;
+            })()}
 
             {/* Actions */}
             <div className="space-y-2">
