@@ -163,7 +163,7 @@ export default function NotificationsPage() {
                 <Card
                   padding="md"
                   className={`transition-colors hover:shadow-sm ${
-                    !n.is_read ? "border-l-4 border-l-primary bg-primary/[0.02]" : ""
+                    !n.is_read ? "border-l-4 border-l-primary bg-primary/2" : ""
                   }`}
                 >
                   <div className="flex items-start gap-4">

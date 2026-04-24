@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import crypto from "crypto";
 
 const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET;

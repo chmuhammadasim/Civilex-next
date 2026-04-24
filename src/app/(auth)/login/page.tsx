@@ -126,7 +126,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-[34px] text-muted hover:text-foreground"
+              className="absolute right-3 top-8.5 text-muted hover:text-foreground"
               tabIndex={-1}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

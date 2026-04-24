@@ -601,7 +601,7 @@ function NewCaseForm() {
               <Spinner />
             </div>
           ) : (
-            <div className="max-h-[400px] space-y-3 overflow-y-auto">
+            <div className="max-h-100 space-y-3 overflow-y-auto">
               {lawyers.map((lawyer) => (
                 <div
                   key={lawyer.id}

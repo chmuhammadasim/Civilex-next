@@ -229,7 +229,7 @@ export default function PaymentForm({
           {isCard ? (
             <>
               {/* Faux card preview */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-700 via-indigo-600 to-blue-700 p-4 text-white shadow-md">
+              <div className="relative overflow-hidden rounded-xl bg-linear-to-br from-indigo-700 via-indigo-600 to-blue-700 p-4 text-white shadow-md">
                 <div className="flex items-start justify-between">
                   <p className="text-xs uppercase tracking-wide opacity-80">Civilex Pay</p>
                   <CreditCard className="h-6 w-6 opacity-90" />
