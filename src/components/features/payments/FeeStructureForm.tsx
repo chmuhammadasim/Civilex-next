@@ -39,9 +39,9 @@ export default function FeeStructureForm({
     setErrors({});
 
     const result = feeStructureSchema.safeParse({
-      feeAmount: parseFloat(feeAmount),
-      allowInstallments,
-      installmentCount: parseInt(installmentCount),
+      fee_amount: parseFloat(feeAmount),
+      allow_installments: allowInstallments,
+      installment_count: parseInt(installmentCount),
     });
 
     if (!result.success) {
@@ -53,7 +53,7 @@ export default function FeeStructureForm({
       return;
     }
 
-    onSubmit(result.data.feeAmount, result.data.allowInstallments, result.data.installmentCount);
+    onSubmit(result.data.fee_amount, result.data.allow_installments, result.data.installment_count ?? 1);
   };
 
   return (
@@ -113,8 +113,6 @@ export default function FeeStructureForm({
             "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
             allowInstallments ? "bg-primary" : "bg-border",
           ].join(" ")}>
-
-        >
           <span
             className={[
               "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
