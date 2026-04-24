@@ -129,7 +129,34 @@ civilex/
 14. **case_activity_log** - Immutable audit trail (actor, action, jsonb details)
 
 ### Case Status Flow
-`draft` → `pending_lawyer_acceptance` → `lawyer_accepted` → `payment_pending` → `payment_confirmed` → `drafting` → `submitted_to_admin` → `under_scrutiny` → `registered` → `summon_issued` → `preliminary_hearing` → `issues_framed` → `transferred_to_trial` → `evidence_stage` → `arguments` → `reserved_for_judgment` → `judgment_delivered` → `closed`
+
+**Main path (happy path):**
+```
+draft
+  └─► pending_lawyer_acceptance
+        ├─► draft                    (lawyer declines → revert)
+        └─► payment_pending          (lawyer accepts)
+              └─► payment_confirmed
+                    └─► drafting
+                          ├─► submitted_to_admin
+                          │     ├─► returned_for_revision → drafting   (admin returns)
+                          │     └─► under_scrutiny
+                          │           ├─► returned_for_revision → drafting
+                          │           └─► registered
+                          │                 └─► summon_issued
+                          │                       └─► preliminary_hearing
+                          │                             ├─► disposed    (alternative terminal)
+                          │                             └─► issues_framed
+                          │                                   └─► transferred_to_trial
+                          │                                         └─► evidence_stage
+                          │                                               └─► arguments
+                          │                                                     └─► reserved_for_judgment
+                          │                                                           └─► judgment_delivered
+                          │                                                                 └─► closed ✓
+                          └─► returned_for_revision                                 (direct admin return)
+```
+
+**All 20 statuses:** `draft` · `pending_lawyer_acceptance` · `payment_pending` · `payment_confirmed` · `drafting` · `submitted_to_admin` · `under_scrutiny` · `returned_for_revision` · `registered` · `summon_issued` · `preliminary_hearing` · `issues_framed` · `transferred_to_trial` · `evidence_stage` · `arguments` · `reserved_for_judgment` · `judgment_delivered` · `closed` · `disposed` · ~~`lawyer_accepted`~~ *(defined but never set — dead status)*
 
 ---
 

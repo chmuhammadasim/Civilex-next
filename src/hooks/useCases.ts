@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./useAuth";
 import type { Case, CaseWithRelations, CaseDocument } from "@/types/case";
+import type { CaseStatus, Role } from "@/lib/constants";
+import { isValidTransition, canRoleTransitionTo } from "@/lib/helpers/case-workflow";
 
 export function useCases() {
   const { user } = useAuth();
@@ -780,10 +782,20 @@ export function useCases() {
 
   const updateCaseStatus = async (
     caseId: string,
-    newStatus: string,
-    currentStatus: string
+    newStatus: CaseStatus,
+    currentStatus: CaseStatus
   ) => {
     if (!user) return { error: "Not authenticated" };
+
+    // Enforce the workflow transition map
+    if (!isValidTransition(currentStatus, newStatus)) {
+      return { error: `Invalid transition: ${currentStatus} → ${newStatus}` };
+    }
+
+    // Enforce role permissions
+    if (!canRoleTransitionTo(user.role as Role, newStatus)) {
+      return { error: `Your role is not permitted to move a case to "${newStatus}"` };
+    }
 
     try {
       const supabase = createClient();

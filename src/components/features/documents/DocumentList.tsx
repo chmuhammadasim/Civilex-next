@@ -64,14 +64,14 @@ function canUpload(p: DocumentPermissions): boolean {
 
 function canDeleteDoc(doc: CaseDocument, p: DocumentPermissions): boolean {
   if (p.role === "admin_court") return true; // admin deletes any
-  if (p.role === "client" || p.role === "stenographer") return false;
-  return doc.uploaded_by === p.currentUserId; // lawyers/judges: own only
+  if (p.role === "stenographer") return false; // steno: read-only
+  return doc.uploaded_by === p.currentUserId; // all other roles: own uploads only
 }
 
 function canEditDoc(doc: CaseDocument, p: DocumentPermissions): boolean {
   if (p.role === "admin_court") return true;
-  if (p.role === "stenographer" || p.role === "client") return false;
-  return doc.uploaded_by === p.currentUserId;
+  if (p.role === "stenographer") return false;
+  return doc.uploaded_by === p.currentUserId; // client/lawyer/judge: own uploads only
 }
 
 function canSignDocs(p: DocumentPermissions): boolean {

@@ -137,7 +137,7 @@ export default function CaseDetailPage({
 
   const isLawyer = user?.role === "lawyer";
   const isCourtOfficial = user && ["admin_court", "magistrate", "trial_judge"].includes(user.role);
-  const status = caseData.status;
+  const status = caseData.status as CaseStatus;
 
   // Show scrutiny tab for admin court or when case is in scrutiny-related statuses
   const showScrutinyTab = isCourtOfficial || [
@@ -481,6 +481,21 @@ export default function CaseDetailPage({
                 {issues.length === 0
                   ? "Frame Issues (0 recorded)"
                   : `Finalise Issues (${issues.length})`}
+              </Button>
+            )}
+
+            {/* Admin Court / Magistrate: Dispose at preliminary hearing stage */}
+            {isCourtOfficial && status === "preliminary_hearing" && (
+              <Button
+                size="sm"
+                variant="danger"
+                isLoading={isActionLoading}
+                onClick={() =>
+                  handleAction(() => updateCaseStatus(caseId, "disposed", status))
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+                Dispose Case
               </Button>
             )}
 
