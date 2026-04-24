@@ -172,7 +172,7 @@ export default function StenographerTodayPage() {
                     if (hints.length === 0) return null;
                     return (
                       <div className="mt-3 flex items-start gap-2 rounded border border-warning/40 bg-warning-light/50 px-3 py-2 text-xs text-yellow-900">
-                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         <div className="space-y-0.5">
                           {hints.map((h) => (
                             <p key={h}>{h}</p>

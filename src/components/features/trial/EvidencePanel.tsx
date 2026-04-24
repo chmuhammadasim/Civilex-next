@@ -54,7 +54,6 @@ export default function EvidencePanel({
 }: EvidencePanelProps) {
   const {
     evidence,
-    isLoading,
     submitEvidence,
     updateEvidenceStatus,
     linkToIssue,
@@ -193,6 +192,7 @@ export default function EvidencePanel({
               <select
                 value={evidenceType}
                 onChange={(e) => setEvidenceType(e.target.value)}
+                aria-label="Evidence type"
                 className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {EVIDENCE_TYPE_OPTIONS.map((opt) => (
@@ -210,6 +210,7 @@ export default function EvidencePanel({
               <select
                 value={side}
                 onChange={(e) => setSide(e.target.value as WitnessSide)}
+                aria-label="Submitted by side"
                 className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="prosecution">Prosecution / Plaintiff</option>
@@ -413,7 +414,7 @@ function EvidenceCard({
                 Issue #{link.issue?.issue_number ?? "?"}
                 {link.issue?.issue_text && (
                   <span
-                    className="max-w-[200px] truncate text-muted"
+                    className="max-w-50 truncate text-muted"
                     title={link.issue.issue_text}
                   >
                     · {link.issue.issue_text}
@@ -445,6 +446,7 @@ function EvidenceCard({
             <select
               value={selectedIssueId}
               onChange={(e) => setSelectedIssueId(e.target.value)}
+              aria-label="Select issue to link"
               className="flex-1 rounded-lg border border-border bg-cream-light px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">Select an issue…</option>

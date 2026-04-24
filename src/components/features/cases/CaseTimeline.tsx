@@ -420,10 +420,7 @@ function DetailedStatusStepper({ currentStatus }: { currentStatus: string }) {
         </div>
         <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-cream-dark">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{
-              width: `${Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%`,
-            }}
+            className={`h-full rounded-full bg-primary transition-all duration-500 [width:${Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%]`}
           />
         </div>
         <p className="mt-1.5 text-xs text-muted">

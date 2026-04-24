@@ -336,13 +336,7 @@ export default function CaseDetailPage({
             </div>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-cream-dark">
               <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={
-                  {
-                    "--bar-w": `${Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%`,
-                    width: "var(--bar-w)",
-                  } as React.CSSProperties
-                }
+                className={`h-full rounded-full bg-primary transition-all [width:${Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%]`}
               />
             </div>
             <p className="mt-1 text-xs text-muted">

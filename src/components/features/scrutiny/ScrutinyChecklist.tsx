@@ -166,8 +166,7 @@ export default function ScrutinyChecklistComponent({
       <div className="mb-4 flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-cream-dark">
           <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${(checkedCount / 7) * 100}%` }}
+            className={`h-full rounded-full bg-primary transition-all [width:${(checkedCount / 7) * 100}%]`}
           />
         </div>
         <span className="text-sm font-medium text-muted">{checkedCount}/7</span>

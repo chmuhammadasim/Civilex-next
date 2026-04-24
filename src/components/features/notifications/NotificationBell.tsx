@@ -101,6 +101,7 @@ export default function NotificationBell() {
               <button
                 onClick={() => setIsOpen(false)}
                 className="rounded p-1 text-muted hover:bg-cream-dark hover:text-foreground"
+                title="Close notifications"
               >
                 <X className="h-4 w-4" />
               </button>

@@ -231,6 +231,7 @@ export default function OtpSignatureModal({
                 inputMode="numeric"
                 maxLength={1}
                 value={digit}
+                aria-label={`OTP digit ${i + 1}`}
                 onChange={(e) => handleDigitChange(i, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(i, e)}
                 className="h-12 w-12 rounded-lg border border-border bg-cream-light text-center text-lg font-bold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"

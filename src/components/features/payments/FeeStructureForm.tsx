@@ -103,7 +103,7 @@ export default function FeeStructureForm({
         <button
           type="button"
           role="switch"
-          aria-checked={allowInstallments ? "true" : "false"}
+          aria-checked={allowInstallments}
           title={allowInstallments ? "Disable instalments" : "Enable instalments"}
           onClick={() => {
             setAllowInstallments((v) => !v);

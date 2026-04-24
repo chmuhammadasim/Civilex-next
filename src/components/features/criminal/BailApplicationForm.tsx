@@ -180,6 +180,7 @@ export default function BailApplicationForm({
               onChange={(e) =>
                 setApplicationType(e.target.value as BailApplicationType)
               }
+              aria-label="Bail application type"
               className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
               {Object.entries(BAIL_APPLICATION_TYPE_LABELS).map(

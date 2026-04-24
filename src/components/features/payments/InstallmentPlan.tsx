@@ -86,10 +86,7 @@ export default function InstallmentPlan({
           {/* Progress bar */}
           <div className="h-2 w-full overflow-hidden rounded-full bg-border">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-500"
-              style={
-                { "--bar-w": `${completionPct}%`, width: "var(--bar-w)" } as React.CSSProperties
-              }
+              className={`h-full rounded-full bg-primary transition-all duration-500 [width:${completionPct}%]`}
             />
           </div>
 
