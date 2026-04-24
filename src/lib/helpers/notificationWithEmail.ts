@@ -159,12 +159,12 @@ export async function getCaseParticipantEmails(
   }
 
   const lawyerEmails = (caseData.assignments || [])
-    .filter((a: { status: string; lawyer?: { email: string } }) =>
+    .filter((a: any) =>
       a.status === "accepted" && a.lawyer?.email
     )
-    .map((a: { side: "plaintiff" | "defendant"; lawyer: { email: string } }) => ({
-      side: a.side,
-      email: a.lawyer.email,
+    .map((a: any) => ({
+      side: a.side as "plaintiff" | "defendant",
+      email: a.lawyer.email as string,
     }));
 
   return {
