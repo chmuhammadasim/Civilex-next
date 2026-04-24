@@ -26,7 +26,7 @@
 
 -- Uncomment and fill in with actual UUIDs after creating auth users:
 
-/*
+
 -- Client 1: Ahmad Khan (Plaintiff)
 UPDATE public.profiles SET
   full_name = 'Ahmad Khan',
@@ -34,7 +34,7 @@ UPDATE public.profiles SET
   cnic = '35201-1234567-1',
   address = '123 Model Town, Lahore',
   city = 'Lahore'
-WHERE id = '<CLIENT1_UUID>';
+WHERE id = '71e6fed4-9b07-43c8-a94d-e1adfc2989a4';
 
 -- Client 2: Fatima Bibi (Defendant)
 UPDATE public.profiles SET
@@ -43,7 +43,7 @@ UPDATE public.profiles SET
   cnic = '35201-7654321-2',
   address = '45 Gulberg III, Lahore',
   city = 'Lahore'
-WHERE id = '<CLIENT2_UUID>';
+WHERE id = '71e6fed4-9b07-43c8-a94d-e1adfc2989a4';
 
 -- Lawyer 1: Barrister Ali Raza
 UPDATE public.profiles SET
@@ -52,12 +52,12 @@ UPDATE public.profiles SET
   cnic = '35201-1111111-1',
   address = 'Lawyers Chamber, District Courts',
   city = 'Lahore'
-WHERE id = '<LAWYER1_UUID>';
+WHERE id = '3586008a-7dd7-414a-87f2-88479132461c';
 
 -- Lawyer 1 profile
 INSERT INTO public.lawyer_profiles (id, bar_license_number, specialization, experience_years, bio, hourly_rate, rating, total_reviews, is_available, location)
 VALUES (
-  '<LAWYER1_UUID>',
+  '3586008a-7dd7-414a-87f2-88479132461c',
   'LHR-2015-4521',
   ARRAY['Civil', 'Property', 'Family'],
   9,
@@ -79,12 +79,12 @@ UPDATE public.profiles SET
   cnic = '35201-2222222-2',
   address = 'Supreme Court Bar, Islamabad',
   city = 'Islamabad'
-WHERE id = '<LAWYER2_UUID>';
+WHERE id = '1e1e6011-e4ab-446c-8592-a4dbb4168810';
 
 -- Lawyer 2 profile
 INSERT INTO public.lawyer_profiles (id, bar_license_number, specialization, experience_years, bio, hourly_rate, rating, total_reviews, is_available, location)
 VALUES (
-  '<LAWYER2_UUID>',
+  '1e1e6011-e4ab-446c-8592-a4dbb4168810',
   'ISB-2012-7789',
   ARRAY['Criminal', 'Constitutional', 'Cyber'],
   12,
@@ -105,7 +105,7 @@ UPDATE public.profiles SET
   phone = '+923005551122',
   address = 'Admin Court Complex, Lahore',
   city = 'Lahore'
-WHERE id = '<ADMIN_UUID>';
+WHERE id = '475b9f5e-d054-41e7-843e-544afb0b3803';
 
 -- Magistrate
 UPDATE public.profiles SET
@@ -113,7 +113,7 @@ UPDATE public.profiles SET
   phone = '+923005553344',
   address = 'Magistrate Court, Lahore',
   city = 'Lahore'
-WHERE id = '<MAGISTRATE_UUID>';
+WHERE id = '922321fd-8d39-4d06-b707-d011307f9a97';
 
 -- Trial Judge
 UPDATE public.profiles SET
@@ -121,7 +121,7 @@ UPDATE public.profiles SET
   phone = '+923005557788',
   address = 'District & Sessions Court, Lahore',
   city = 'Lahore'
-WHERE id = '<JUDGE_UUID>';
+WHERE id = 'c613a1dd-419c-4436-975c-734cfad37b0d';
 
 -- Stenographer
 UPDATE public.profiles SET
@@ -129,14 +129,14 @@ UPDATE public.profiles SET
   phone = '+923005559900',
   address = 'Court Complex, Lahore',
   city = 'Lahore'
-WHERE id = '<STENO_UUID>';
-*/
+WHERE id = '51fd1e7a-86a8-4e5e-9445-18fd947e64b7';
+
 
 -- ============================================================
 -- STEP 2: Sample Cases (uncomment after profiles are set up)
 -- ============================================================
 
-/*
+
 -- Civil Case 1: Property Dispute
 INSERT INTO public.cases (
   id, case_number, case_type, status, title, description,
@@ -149,11 +149,11 @@ INSERT INTO public.cases (
   'evidence_stage',
   'Ahmad Khan vs Fatima Bibi - Property Dispute',
   'Dispute regarding ownership of property situated at Plot No. 123, Block A, Model Town, Lahore. The plaintiff claims rightful ownership through registered sale deed dated 15-01-2024, while the defendant contests the validity of said deed.',
-  '<CLIENT1_UUID>',
-  '<CLIENT2_UUID>',
-  '<ADMIN_UUID>',
-  '<JUDGE_UUID>',
-  '<STENO_UUID>',
+  '71e6fed4-9b07-43c8-a94d-e1adfc2989a4',
+  '71e6fed4-9b07-43c8-a94d-e1adfc2989a4',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
+  'c613a1dd-419c-4436-975c-734cfad37b0d',
+  '51fd1e7a-86a8-4e5e-9445-18fd947e64b7',
   'trial_court',
   'normal',
   '2026-01-15',
@@ -172,9 +172,9 @@ INSERT INTO public.cases (
   'registered',
   'State vs Unknown Accused - Theft Case',
   'FIR No. 234/2026 registered at Model Town Police Station, Lahore for theft of valuables worth PKR 5,00,000 from the complainant residence.',
-  '<CLIENT1_UUID>',
+  '71e6fed4-9b07-43c8-a94d-e1adfc2989a4',
   NULL,
-  '<ADMIN_UUID>',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
   'admin_court',
   'normal',
   '2026-02-01',
@@ -192,27 +192,27 @@ INSERT INTO public.cases (
   'draft',
   'Maintenance & Custody Application',
   'Application for maintenance allowance and custody rights of minor children under the Guardian and Wards Act 1890 and Family Courts Act 1964.',
-  '<CLIENT2_UUID>',
+  '71e6fed4-9b07-43c8-a94d-e1adfc2989a4',
   'filing',
   'sensitive',
   '2026-02-20'
 );
-*/
+
 
 -- ============================================================
 -- STEP 3: Sample Notifications (uncomment after cases exist)
 -- ============================================================
 
-/*
+
 INSERT INTO public.notifications (user_id, title, message, type, reference_type, is_read)
 VALUES
-  ('<CLIENT1_UUID>', 'Case Filed Successfully', 'Your case CIV-2026-0001 has been filed successfully.', 'case_status_changed', 'case', true),
-  ('<CLIENT1_UUID>', 'Case Registered', 'Your case has been registered by the Admin Court.', 'case_status_changed', 'case', true),
-  ('<CLIENT1_UUID>', 'Hearing Scheduled', 'Next hearing for your case is scheduled.', 'hearing_scheduled', 'case', false),
-  ('<LAWYER1_UUID>', 'New Case Assignment', 'You have been assigned to a new case. Please review.', 'case_assigned', 'case', false),
-  ('<ADMIN_UUID>', 'New Case for Scrutiny', 'A new case has been submitted for scrutiny review.', 'case_status_changed', 'case', false),
-  ('<JUDGE_UUID>', 'Case Transferred', 'A new case has been transferred to your court.', 'case_status_changed', 'case', false);
-*/
+  ('71e6fed4-9b07-43c8-a94d-e1adfc2989a4', 'Case Filed Successfully', 'Your case CIV-2026-0001 has been filed successfully.', 'case_status_changed', 'case', true),
+  ('71e6fed4-9b07-43c8-a94d-e1adfc2989a4', 'Case Registered', 'Your case has been registered by the Admin Court.', 'case_status_changed', 'case', true),
+  ('71e6fed4-9b07-43c8-a94d-e1adfc2989a4', 'Hearing Scheduled', 'Next hearing for your case is scheduled.', 'hearing_scheduled', 'case', false),
+  ('3586008a-7dd7-414a-87f2-88479132461c', 'New Case Assignment', 'You have been assigned to a new case. Please review.', 'case_assigned', 'case', false),
+  ('475b9f5e-d054-41e7-843e-544afb0b3803', 'New Case for Scrutiny', 'A new case has been submitted for scrutiny review.', 'case_status_changed', 'case', false),
+  ('c613a1dd-419c-4436-975c-734cfad37b0d', 'Case Transferred', 'A new case has been transferred to your court.', 'case_status_changed', 'case', false);
+
 
 -- ============================================================
 -- INSTRUCTIONS

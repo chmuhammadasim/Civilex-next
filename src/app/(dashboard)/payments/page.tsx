@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
@@ -115,11 +116,9 @@ export default function PaymentsPage() {
               Pay Now
             </Button>
           )}
-          {item.transaction_id && (
-            <span className="text-xs text-muted">
-              {item.transaction_id}
-            </span>
-          )}
+          <Link href={`/payments/${item.id}`}>
+            <Button size="sm" variant="ghost">View</Button>
+          </Link>
         </div>
       ),
     },
