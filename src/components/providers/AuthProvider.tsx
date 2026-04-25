@@ -116,17 +116,43 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     const getInitialSession = async () => {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user: authUser },
+          error,
+        } = await supabase.auth.getUser();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (authUser) {
-        // Don't await here — let getInitialSession return so the GoTrue lock
-        // is released before fetchProfile starts its own queries.
-        fetchProfile(authUser);
-      } else {
+        // Handle invalid/expired refresh tokens
+        if (error) {
+          console.warn("[AuthProvider] Session refresh failed, clearing auth:", error.message);
+          await supabase.auth.signOut();
+          setState({
+            user: null,
+            lawyerProfile: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+          return;
+        }
+
+        if (authUser) {
+          // Don't await here — let getInitialSession return so the GoTrue lock
+          // is released before fetchProfile starts its own queries.
+          fetchProfile(authUser);
+        } else {
+          setState({
+            user: null,
+            lawyerProfile: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+        }
+      } catch (err) {
+        console.error("[AuthProvider] Session initialization error:", err);
+        // Clear potentially corrupt session
+        await supabase.auth.signOut();
         setState({
           user: null,
           lawyerProfile: null,
@@ -141,12 +167,25 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Handle refresh token errors gracefully
+      if (event === "TOKEN_REFRESHED" && !session) {
+        console.warn("[AuthProvider] Token refresh failed, session cleared");
+        lastFetchedUserIdRef.current = null;
+        setState({
+          user: null,
+          lawyerProfile: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
+        return;
+      }
+
       if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
         // Skip if signIn just fetched the profile for this user — avoids the
         // lock-steal race between signIn's own query and this listener.
         if (lastFetchedUserIdRef.current === session.user.id) return;
         await fetchProfile(session.user);
-      } else if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+      } else if (event === "SIGNED_OUT") {
         lastFetchedUserIdRef.current = null;
         setState({
           user: null,

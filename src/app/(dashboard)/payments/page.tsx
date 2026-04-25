@@ -26,9 +26,17 @@ const statusVariants: Record<string, "default" | "success" | "danger" | "warning
 
 export default function PaymentsPage() {
   const { user } = useAuth();
-  const { payments, isLoading, fetchPayments } = usePayments();
+  const { payments, isLoading, fetchPayments, syncCasePaymentStatus } = usePayments();
   const [search, setSearch] = useState("");
   const [payingPayment, setPayingPayment] = useState<PaymentWithRelations | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  // Check if there are any cases that need status update
+  const casesNeedingSync = [...new Set(
+    payments
+      .filter(p => p.status === "completed" && p.case_id)
+      .map(p => p.case_id)
+  )];
 
   const filtered = payments.filter(
     (p) =>
@@ -132,11 +140,57 @@ export default function PaymentsPage() {
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
 
+  // Function to sync all cases that have completed payments
+  const handleSyncAllCases = async () => {
+    if (casesNeedingSync.length === 0 || syncing) return;
+    
+    setSyncing(true);
+    try {
+      console.log(`[PaymentsPage] Syncing ${casesNeedingSync.length} cases...`);
+      for (const caseId of casesNeedingSync) {
+        const result = await syncCasePaymentStatus(caseId);
+        console.log(`[PaymentsPage] Sync result for case ${caseId}:`, result);
+      }
+      // Force refresh to show updated status
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (err) {
+      console.error("[PaymentsPage] Sync error:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div>
       <Topbar title="Payments" />
 
       <div className="p-6">
+        {/* Sync Alert */}
+        {casesNeedingSync.length > 0 && totalPending === 0 && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-amber-900">
+                  Case Status Update Available
+                </h3>
+                <p className="mt-1 text-sm text-amber-800">
+                  You have completed all payments for {casesNeedingSync.length} case(s), but the case status may not be updated yet. Click the button to update your case status.
+                </p>
+              </div>
+              <Button
+                onClick={handleSyncAllCases}
+                disabled={syncing}
+                size="sm"
+                variant="primary"
+              >
+                {syncing ? "Updating..." : "Update Status"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Summary cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-cream-light p-4">

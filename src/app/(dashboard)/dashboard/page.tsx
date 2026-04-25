@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Topbar from "@/components/layout/Topbar";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -40,10 +41,11 @@ import Link from "next/link";
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const { cases, isLoading: casesLoading, fetchCases, acceptCase, declineCase } = useCases();
-  const { payments, isLoading: paymentsLoading } = usePayments();
+  const { payments, isLoading: paymentsLoading, syncCasePaymentStatus } = usePayments();
   const { notifications, unreadCount } = useNotifications();
   const { rows: stenoRows } = useStenographerWorkload();
   const router = useRouter();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -52,6 +54,79 @@ export default function DashboardPage() {
 
   const isLoading = casesLoading || paymentsLoading;
   const role = user?.role;
+
+  // Manual sync function for stuck cases
+  const handleManualSync = async () => {
+    if (!user || isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      console.log(`[Sync] Starting manual sync...`);
+      console.log(`[Sync] User ID: ${user.id}, Role: ${role}`);
+      console.log(`[Sync] Total cases: ${cases.length}`);
+      console.log(`[Sync] Total payments: ${payments.length}`);
+      
+      // Find cases stuck in payment_pending but with at least one completed payment
+      const stuckCases = cases.filter((c) => {
+        if (c.status !== "payment_pending") return false;
+        
+        const completedPayments = payments.filter(
+          (p) => p.case_id === c.id && p.status === "completed"
+        );
+        
+        const pendingPayments = payments.filter(
+          (p) => p.case_id === c.id && p.status === "pending"
+        );
+        
+        console.log(`[Sync] Case ${c.case_number} (${c.id}):`);
+        console.log(`  - Status: ${c.status}`);
+        console.log(`  - Completed payments: ${completedPayments.length}`);
+        console.log(`  - Pending payments: ${pendingPayments.length}`);
+        console.log(`  - Plaintiff: ${c.plaintiff_id}, Defendant: ${c.defendant_id}`);
+        
+        return completedPayments.length > 0;
+      });
+
+      console.log(`[Sync] Found ${stuckCases.length} stuck cases:`, stuckCases.map(c => ({ id: c.id, number: c.case_number })));
+
+      // Sync each stuck case
+      let syncedCount = 0;
+      for (const c of stuckCases) {
+        console.log(`[Sync] Syncing case ${c.case_number} (${c.id})...`);
+        const result = await syncCasePaymentStatus(c.id);
+        console.log(`[Sync] Result for ${c.case_number}:`, result);
+        if (result.updated) {
+          syncedCount++;
+        } else if (result.error) {
+          console.error(`[Sync] Error for ${c.case_number}: ${result.error}`);
+        }
+      }
+
+      // Refresh cases if any were synced
+      if (syncedCount > 0) {
+        console.log(`[Sync] Successfully synced ${syncedCount} cases, refreshing...`);
+        await fetchCases();
+        console.log(`[Sync] Refresh complete`);
+      } else {
+        console.log(`[Sync] No cases were synced`);
+      }
+    } catch (err) {
+      console.error("[Sync] Unexpected error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Auto-sync payment status for stuck cases on mount
+  useEffect(() => {
+    if (!user || role !== "client" || casesLoading || paymentsLoading) return;
+
+    const timer = setTimeout(() => {
+      handleManualSync();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [user, role, casesLoading, paymentsLoading]);
 
   // Compute stats
   // For lawyers: "active" means they have an accepted assignment (excludes pending requests)
@@ -86,9 +161,22 @@ export default function DashboardPage() {
       : [];
 
   // Client-specific: cases awaiting payment
+  // Only show cases that have ACTUAL pending payments, not just the status
   const awaitingPayment =
     role === "client"
-      ? cases.filter((c) => c.status === "payment_pending")
+      ? cases.filter((c) => {
+          // Must be in payment_pending status
+          if (c.status !== "payment_pending") return false;
+          
+          // Check if there are actual pending/processing payments for this case
+          const hasPendingPayments = payments.some(
+            (p) =>
+              p.case_id === c.id &&
+              (p.status === "pending" || p.status === "processing")
+          );
+          
+          return hasPendingPayments;
+        })
       : [];
 
   // Admin/Magistrate: cases pending scrutiny
@@ -467,10 +555,25 @@ export default function DashboardPage() {
             {/* Client: Awaiting Payment */}
             {role === "client" && awaitingPayment.length > 0 && (
               <Card>
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-primary">
-                  <Clock className="h-5 w-5" />
-                  Cases Awaiting Payment
-                </h3>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="flex items-center gap-2 text-lg font-semibold text-primary">
+                      <Clock className="h-5 w-5" />
+                      Cases Awaiting Initial Payment
+                    </h3>
+                    <p className="mt-1 text-sm text-muted">
+                      Make your first payment to start case processing. You can pay remaining installments later.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleManualSync}
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? "Syncing..." : "Refresh Status"}
+                  </Button>
+                </div>
                 <div className="space-y-3">
                   {awaitingPayment.map((c) => {
                     const assignment = c.assignments?.find(
@@ -493,7 +596,7 @@ export default function DashboardPage() {
                               {assignment.allow_installments &&
                                 assignment.installment_count > 1 && (
                                   <span className="ml-1 text-xs text-muted">
-                                    ({assignment.installment_count} installments)
+                                    ({assignment.installment_count} installments - case starts after 1st payment)
                                   </span>
                                 )}
                             </p>
@@ -502,7 +605,7 @@ export default function DashboardPage() {
                         <Link href="/payments">
                           <Button size="sm">
                             <CreditCard className="h-4 w-4" />
-                            Pay Now
+                            Pay to Start
                           </Button>
                         </Link>
                       </div>

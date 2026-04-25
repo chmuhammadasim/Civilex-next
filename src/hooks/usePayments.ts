@@ -105,11 +105,17 @@ export function usePayments() {
 
       // Check if all payments for this case are completed
       // The update above is committed, so this query sees the latest state
-      const { data: pendingPayments } = await supabase
+      const { data: pendingPayments, error: checkError } = await supabase
         .from("payments")
         .select("id")
         .eq("case_id", caseId)
         .in("status", ["pending", "processing"]);
+
+      // If query failed, don't advance the case - stay safe
+      if (checkError) {
+        console.error("Error checking pending payments:", checkError);
+        return { error: "Payment completed but unable to verify remaining installments. Please refresh." };
+      }
 
       // Get payment details and receiver info for notification
       const { data: paymentRow } = await supabase
@@ -117,7 +123,10 @@ export function usePayments() {
         .select(`
           receiver_id,
           amount,
-          case:cases(case_number, title),
+          is_installment,
+          installment_number,
+          total_installments,
+          case:cases(case_number, title, status),
           receiver:profiles!receiver_id(email, full_name)
         `)
         .eq("id", paymentId)
@@ -125,7 +134,7 @@ export function usePayments() {
 
       // Notify the receiver (lawyer) about the payment
       if (paymentRow?.receiver_id) {
-        const caseInfo = paymentRow.case as unknown as { case_number: string; title: string } | null;
+        const caseInfo = paymentRow.case as unknown as { case_number: string; title: string; status: string } | null;
         const receiverInfo = paymentRow.receiver as unknown as { email: string; full_name: string } | null;
         
         if (receiverInfo?.email) {
@@ -148,53 +157,79 @@ export function usePayments() {
         }
       }
 
-      // If no more pending payments, transition case status
-      if (!pendingPayments || pendingPayments.length === 0) {
-        await supabase
+      // Advance case to payment_confirmed after FIRST payment (even if installments remain)
+      // NEW BEHAVIOR: Case proceeds as soon as any payment is received
+      const caseInfo = paymentRow?.case as unknown as { status: string } | null;
+      if (caseInfo?.status === "payment_pending") {
+        const { data: caseUpdate, error: caseError } = await supabase
           .from("cases")
           .update({ status: "payment_confirmed" })
           .eq("id", caseId)
-          .eq("status", "payment_pending");
+          .eq("status", "payment_pending")
+          .select("id")
+          .maybeSingle();
 
-        // Log activity
-        await supabase.from("case_activity_log").insert({
-          case_id: caseId,
-          actor_id: user.id,
-          action: "payment_confirmed",
-          details: { payment_id: paymentId },
-        });
-
-        // Notify the payer (client) about full payment confirmation
-        const { data: userProfile } = await supabase
-          .from("profiles")
-          .select("email, full_name")
-          .eq("id", user.id)
-          .single();
-        
-        const { data: caseData } = await supabase
-          .from("cases")
-          .select("case_number, title")
-          .eq("id", caseId)
-          .single();
-        
-        if (userProfile?.email) {
-          await sendNotificationWithEmailAPI({
-            userId: user.id,
-            userEmail: userProfile.email,
-            title: "Payment Confirmed",
-            message: `All payments have been confirmed for your case. Your case will now proceed to the next stage.`,
-            type: "payment_completed",
-            referenceType: "case",
-            referenceId: caseId,
-            emailTemplate: "payment_received",
-            emailData: {
-              caseNumber: caseData?.case_number || "N/A",
-              caseTitle: caseData?.title || "Your Case",
-              amount: "All installments",
-              caseLink: `/cases/${caseId}`,
-              nextStep: "Your case will now proceed to drafting stage.",
+        // Verify the case status was actually updated
+        if (caseError) {
+          console.error("Error updating case status:", caseError);
+          // Payment succeeded but case status update failed
+          // Return success anyway since payment is the critical part
+        } else if (caseUpdate) {
+          // Only log activity and send notification if case was actually updated
+          // Log activity
+          await supabase.from("case_activity_log").insert({
+            case_id: caseId,
+            actor_id: user.id,
+            action: "payment_confirmed",
+            details: { 
+              payment_id: paymentId,
+              installment_info: paymentRow?.is_installment 
+                ? `${paymentRow.installment_number} of ${paymentRow.total_installments}`
+                : "full payment"
             },
           });
+
+          // Notify the payer (client) about payment confirmation
+          const { data: userProfile } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", user.id)
+            .single();
+          
+          const { data: caseData } = await supabase
+            .from("cases")
+            .select("case_number, title")
+            .eq("id", caseId)
+            .single();
+          
+          if (userProfile?.email) {
+            // Check if there are remaining installments
+            const hasRemainingInstallments = pendingPayments && pendingPayments.length > 0;
+            
+            await sendNotificationWithEmailAPI({
+              userId: user.id,
+              userEmail: userProfile.email,
+              title: "Payment Confirmed - Case Proceeding",
+              message: hasRemainingInstallments
+                ? `Your payment has been confirmed and your case will now proceed. You still have ${pendingPayments.length} remaining installment(s) to pay.`
+                : `Your payment has been confirmed and your case will now proceed to the next stage.`,
+              type: "payment_completed",
+              referenceType: "case",
+              referenceId: caseId,
+              emailTemplate: "payment_received",
+              emailData: {
+                caseNumber: caseData?.case_number || "N/A",
+                caseTitle: caseData?.title || "Your Case",
+                amount: hasRemainingInstallments 
+                  ? `First payment of ${Number(paymentRow?.amount || 0).toLocaleString()}` 
+                  : "All payments",
+                caseLink: `/cases/${caseId}`,
+                nextStep: hasRemainingInstallments
+                  ? `Your case will proceed to drafting. Please complete remaining ${pendingPayments.length} installment(s).`
+                  : "Your case will now proceed to drafting stage.",
+              },
+            });
+          }
         }
       }
 
@@ -206,11 +241,76 @@ export function usePayments() {
     }
   };
 
+  const syncCasePaymentStatus = async (caseId: string) => {
+    if (!user) return { error: "Not authenticated", updated: false };
+
+    try {
+      const supabase = createClient();
+
+      console.log(`[syncCasePaymentStatus] Calling database function for case ${caseId}`);
+
+      // Call the secure database function that bypasses RLS
+      const { data, error } = await supabase.rpc('sync_payment_status', {
+        target_case_id: caseId
+      });
+
+      if (error) {
+        console.error(`[syncCasePaymentStatus] RPC error:`, error);
+        return { 
+          error: `Failed to sync: ${error.message}`, 
+          updated: false 
+        };
+      }
+
+      console.log(`[syncCasePaymentStatus] RPC response:`, data);
+
+      // The function returns JSON with success, error, updated fields
+      if (data && typeof data === 'object') {
+        if (data.success && data.updated) {
+          console.log(`[syncCasePaymentStatus] ✅ Case ${data.case_number} updated successfully`);
+          console.log(`[syncCasePaymentStatus] Completed payments: ${data.completed_payments}`);
+          await fetchPayments(); // Refresh payments list
+          return { 
+            error: null, 
+            updated: true,
+            message: data.message 
+          };
+        } else if (data.success && !data.updated) {
+          console.log(`[syncCasePaymentStatus] ℹ️ ${data.message}`);
+          return { 
+            error: null, 
+            updated: false,
+            message: data.message 
+          };
+        } else {
+          console.error(`[syncCasePaymentStatus] ❌ Function error: ${data.error}`);
+          return { 
+            error: data.error || 'Unknown error', 
+            updated: false 
+          };
+        }
+      }
+
+      return { 
+        error: 'Unexpected response format', 
+        updated: false 
+      };
+
+    } catch (err) {
+      console.error(`[syncCasePaymentStatus] Exception:`, err);
+      return { 
+        error: err instanceof Error ? err.message : 'Unknown error', 
+        updated: false 
+      };
+    }
+  };
+
   return {
     payments,
     isLoading,
     fetchPayments,
     createPayment,
     simulatePayment,
+    syncCasePaymentStatus,
   };
 }

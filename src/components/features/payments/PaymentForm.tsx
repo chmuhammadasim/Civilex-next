@@ -56,7 +56,7 @@ export default function PaymentForm({
   onClose,
   onSuccess,
 }: PaymentFormProps) {
-  const { simulatePayment, createPayment } = usePayments();
+  const { simulatePayment, createPayment, syncCasePaymentStatus } = usePayments();
   const [step, setStep] = useState<Step>("method");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | "">("");
   const [formData, setFormData] = useState({
@@ -128,6 +128,11 @@ export default function PaymentForm({
         setErrors({ payment_method: error });
         return;
       }
+
+      // After successful payment, sync the case status
+      // This ensures the case advances from payment_pending if this was the first payment
+      console.log("[PaymentForm] Payment successful, syncing case status...");
+      await syncCasePaymentStatus(payment.case_id);
     } else {
       const { data: newPayment, error: createError } = await createPayment({
         case_id: payment.case_id,
@@ -144,6 +149,10 @@ export default function PaymentForm({
       if (createError || !newPayment) {
         setStep("details");
         setErrors({ payment_method: createError || "Failed to create payment" });
+      
+      // After successful payment, sync the case status
+      console.log("[PaymentForm] Payment successful, syncing case status...");
+      await syncCasePaymentStatus(payment.case_id);
         return;
       }
 

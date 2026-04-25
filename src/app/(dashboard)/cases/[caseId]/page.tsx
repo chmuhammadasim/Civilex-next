@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Topbar from "@/components/layout/Topbar";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -30,6 +30,7 @@ import { useCaseIssues } from "@/hooks/useCaseIssues";
 import { createClient } from "@/lib/supabase/client";
 import { useCase, useCases } from "@/hooks/useCases";
 import { useHearings } from "@/hooks/useHearings";
+import { usePayments } from "@/hooks/usePayments";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentRequests } from "@/hooks/useDocumentRequests";
 import type { CriminalCaseDetailsExtended } from "@/types/criminal";
@@ -81,6 +82,7 @@ export default function CaseDetailPage({
   const { issues } = useCaseIssues(caseId);
   const { judgment } = useJudgment(caseId);
   const { decree } = useDecree(caseId);
+  const { payments, syncCasePaymentStatus, isLoading: paymentsLoading } = usePayments();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [showAssignJudgeDialog, setShowAssignJudgeDialog] = useState(false);
   const [judgeList, setJudgeList] = useState<{ id: string; full_name: string; email: string }[]>([]);
@@ -107,6 +109,79 @@ export default function CaseDetailPage({
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
+  const [isSyncingPayment, setIsSyncingPayment] = useState(false);
+  const [casePayments, setCasePayments] = useState<any[]>([]);
+
+  // Fetch payments directly for this case to avoid RLS/hook issues
+  useEffect(() => {
+    async function checkCasePayments() {
+      if (!caseId) return;
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("payments")
+          .select("id, status, amount")
+          .eq("case_id", caseId);
+        
+        console.log("[CaseDetail] Direct payment fetch for case:", caseId, "results:", data?.length || 0, "payments");
+        if (data) {
+          setCasePayments(data);
+          const completed = data.filter(p => p.status === "completed").length;
+          console.log("[CaseDetail] Completed payments:", completed);
+        }
+        if (error) {
+          console.error("[CaseDetail] Payment fetch error:", error);
+        }
+      } catch (err) {
+        console.error("[CaseDetail] Payment check error:", err);
+      }
+    }
+    checkCasePayments();
+  }, [caseId, caseData?.status]);
+
+  // Check if case is stuck in payment_pending with completed payments
+  const hasCompletedPayments = casePayments.some((p) => p.status === "completed");
+  const isPaymentStuck = caseData?.status === "payment_pending" && hasCompletedPayments;
+
+  console.log("[CaseDetail] Payment stuck check:", { 
+    caseStatus: caseData?.status, 
+    hasCompletedPayments, 
+    isPaymentStuck,
+    totalPayments: casePayments.length,
+    syncFunctionExists: typeof syncCasePaymentStatus !== 'undefined'
+  });
+
+  const handleSyncPaymentStatus = async () => {
+    alert("Button clicked!"); // Simple test
+    console.log("[CaseDetail] 🔘 Button clicked! Starting sync...");
+    setIsSyncingPayment(true);
+    setActionError("");
+    
+    try {
+      console.log("[CaseDetail] Syncing payment status for case", caseId);
+      const result = await syncCasePaymentStatus(caseId);
+      console.log("[CaseDetail] Sync result:", JSON.stringify(result, null, 2));
+      
+      if (result.updated) {
+        console.log("[CaseDetail] ✅ Case updated! Refreshing...");
+        await refreshCase();
+        // Reload the page to show updated status
+        window.location.reload();
+      } else if (result.error) {
+        console.error("[CaseDetail] ❌ Sync error:", result.error);
+        setActionError(result.error);
+      } else {
+        console.log("[CaseDetail] ℹ️ No update needed");
+        setActionError("No update was needed. Case may already be updated.");
+      }
+    } catch (err) {
+      console.error("[CaseDetail] ❌ Sync exception:", err);
+      setActionError(`Failed to sync: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsSyncingPayment(false);
+      console.log("[CaseDetail] Sync complete");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -293,6 +368,36 @@ export default function CaseDetailPage({
         {actionError && (
           <div className="mt-2 rounded-lg border border-danger bg-danger-light p-3 text-sm text-danger">
             {actionError}
+          </div>
+        )}
+
+        {/* Payment Stuck Alert */}
+        {isPaymentStuck && (
+          <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-amber-900">
+                    Payment Completed - Case Status Update Needed
+                  </h3>
+                  <p className="mt-1 text-sm text-amber-800">
+                    You've completed at least one payment, but the case status hasn't been updated yet. 
+                    Click the button to update your case from "Payment Pending" to "Payment Confirmed" so it can proceed.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  console.log("[CaseDetail] 🔘 RAW BUTTON CLICKED!");
+                  handleSyncPaymentStatus();
+                }}
+                disabled={isSyncingPayment}
+                className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+              >
+                {isSyncingPayment ? "Updating..." : "Update Status"}
+              </button>
+            </div>
           </div>
         )}
 
