@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./useAuth";
+import { sendNotificationWithEmailAPI } from "@/lib/helpers/notificationAPI";
 import type { Case, CaseWithRelations, CaseDocument } from "@/types/case";
 import type { CaseStatus, Role } from "@/lib/constants";
 import { isValidTransition, canRoleTransitionTo } from "@/lib/helpers/case-workflow";
@@ -397,7 +398,12 @@ export function useCases() {
       // Get plaintiff_id for plaintiff-side payment, or use assignment client_id for defendant side
       const { data: caseRow } = await supabase
         .from("cases")
-        .select("plaintiff_id, title")
+        .select(`
+          plaintiff_id,
+          case_number,
+          title,
+          plaintiff:profiles!plaintiff_id(email, full_name)
+        `)
         .eq("id", caseId)
         .single();
 
@@ -478,23 +484,52 @@ export function useCases() {
 
       // Notify the client (defendant or plaintiff) that lawyer accepted
       if (actualPayerId) {
-        await supabase.from("notifications").insert({
-          user_id: actualPayerId,
-          title: "Lawyer Accepted Your Case",
-          message: `Your lawyer has accepted the case "${caseRow?.title}" and set a fee of PKR ${feeAmount.toLocaleString()}. Please proceed with payment.`,
-          type: "case_accepted",
-          reference_type: "case",
-          reference_id: caseId,
-        });
+        // Get client profile for email
+        const { data: clientProfile } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", actualPayerId)
+          .single();
+        
+        if (clientProfile?.email) {
+          // Send case accepted email
+          await sendNotificationWithEmailAPI({
+            userId: actualPayerId,
+            userEmail: clientProfile.email,
+            title: "Lawyer Accepted Your Case",
+            message: `Your lawyer has accepted the case "${caseRow?.title}" and set a fee of PKR ${feeAmount.toLocaleString()}. Please proceed with payment.`,
+            type: "case_accepted",
+            referenceType: "case",
+            referenceId: caseId,
+            emailTemplate: "case_accepted",
+            emailData: {
+              caseNumber: caseRow?.case_number || "N/A",
+              caseTitle: caseRow?.title || "Your Case",
+              lawyerName: user.full_name || "Your Lawyer",
+              caseLink: `/cases/${caseId}`,
+              nextStep: `Please proceed with fee payment of PKR ${feeAmount.toLocaleString()}.`,
+            },
+          });
 
-        await supabase.from("notifications").insert({
-          user_id: actualPayerId,
-          title: "Payment Pending",
-          message: `A payment of PKR ${feeAmount.toLocaleString()} is required for your case to proceed.`,
-          type: "payment_pending",
-          reference_type: "case",
-          reference_id: caseId,
-        });
+          // Send payment reminder email
+          await sendNotificationWithEmailAPI({
+            userId: actualPayerId,
+            userEmail: clientProfile.email,
+            title: "Payment Pending",
+            message: `A payment of PKR ${feeAmount.toLocaleString()} is required for your case to proceed.`,
+            type: "payment_pending",
+            referenceType: "case",
+            referenceId: caseId,
+            emailTemplate: "payment_reminder",
+            emailData: {
+              caseNumber: caseRow?.case_number || "N/A",
+              caseTitle: caseRow?.title || "Your Case",
+              amount: feeAmount.toLocaleString(),
+              dueDate: "As soon as possible",
+              caseLink: `/cases/${caseId}`,
+            },
+          });
+        }
       }
 
       await fetchCases();
@@ -818,39 +853,81 @@ export function useCases() {
         details: { new_status: newStatus, old_status: currentStatus },
       });
 
-      // Notify all parties
+      // Notify all parties with email
       const { data: caseRow } = await supabase
         .from("cases")
-        .select("plaintiff_id, defendant_id, title")
+        .select(`
+          plaintiff_id,
+          defendant_id,
+          case_number,
+          title,
+          plaintiff:profiles!plaintiff_id(email, full_name),
+          defendant:profiles!defendant_id(email, full_name)
+        `)
         .eq("id", caseId)
         .single();
 
       const partyIds: string[] = [];
-      if (caseRow?.plaintiff_id) partyIds.push(caseRow.plaintiff_id);
-      if (caseRow?.defendant_id) partyIds.push(caseRow.defendant_id);
+      const partyEmails = new Map<string, { email: string; full_name: string }>();
+      
+      if (caseRow?.plaintiff_id && caseRow.plaintiff) {
+        partyIds.push(caseRow.plaintiff_id);
+        partyEmails.set(caseRow.plaintiff_id, caseRow.plaintiff as any);
+      }
+      if (caseRow?.defendant_id && caseRow.defendant) {
+        partyIds.push(caseRow.defendant_id);
+        partyEmails.set(caseRow.defendant_id, caseRow.defendant as any);
+      }
 
       const { data: assignments } = await supabase
         .from("case_assignments")
-        .select("lawyer_id")
+        .select(`
+          lawyer_id,
+          lawyer:profiles!lawyer_id(email, full_name)
+        `)
         .eq("case_id", caseId)
         .eq("status", "accepted");
 
       if (assignments) {
         for (const a of assignments) {
-          if (!partyIds.includes(a.lawyer_id)) partyIds.push(a.lawyer_id);
+          if (!partyIds.includes(a.lawyer_id)) {
+            partyIds.push(a.lawyer_id);
+            if (a.lawyer) {
+              partyEmails.set(a.lawyer_id, (a.lawyer as any));
+            }
+          }
         }
       }
 
+      // Determine email template based on status
+      let emailTemplate: "case_registered" | "case_transferred" | "judgment_delivered" | "case_stayed" | "case_withdrawn" | "case_disposed" = "case_registered";
+      if (newStatus === "judgment_delivered") emailTemplate = "judgment_delivered";
+      else if (newStatus === "case_transferred") emailTemplate = "case_transferred";
+      else if (newStatus === "case_stayed") emailTemplate = "case_stayed";
+      else if (newStatus === "case_withdrawn") emailTemplate = "case_withdrawn";
+      else if (newStatus === "disposed") emailTemplate = "case_disposed";
+
       for (const pid of partyIds) {
         if (pid !== user.id) {
-          await supabase.from("notifications").insert({
-            user_id: pid,
-            title: "Case Status Updated",
-            message: `Case "${caseRow?.title}" status has been updated to "${newStatus.replace(/_/g, " ")}".`,
-            type: "case_status_changed",
-            reference_type: "case",
-            reference_id: caseId,
-          });
+          const profileInfo = partyEmails.get(pid);
+          if (profileInfo?.email) {
+            await sendNotificationWithEmailAPI({
+              userId: pid,
+              userEmail: profileInfo.email,
+              title: "Case Status Updated",
+              message: `Case "${caseRow?.title}" status has been updated to "${newStatus.replace(/_/g, " ")}".`,
+              type: "case_status_changed",
+              referenceType: "case",
+              referenceId: caseId,
+              emailTemplate,
+              emailData: {
+                caseNumber: caseRow?.case_number || "N/A",
+                caseTitle: caseRow?.title || "Your Case",
+                caseLink: `/cases/${caseId}`,
+                newStatus: newStatus.replace(/_/g, " "),
+              },
+            });
+          }
         }
       }
 

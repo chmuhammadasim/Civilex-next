@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./useAuth";
+import { sendNotificationWithEmailAPI } from "@/lib/helpers/notificationAPI";
 import type { PaymentWithRelations, PaymentMethod } from "@/types/payment";
 
 export function usePayments() {
@@ -110,24 +111,41 @@ export function usePayments() {
         .eq("case_id", caseId)
         .in("status", ["pending", "processing"]);
 
-      // Get payment details for notification
+      // Get payment details and receiver info for notification
       const { data: paymentRow } = await supabase
         .from("payments")
-        .select("receiver_id, amount, case:cases(title)")
+        .select(`
+          receiver_id,
+          amount,
+          case:cases(case_number, title),
+          receiver:profiles!receiver_id(email, full_name)
+        `)
         .eq("id", paymentId)
         .single();
 
       // Notify the receiver (lawyer) about the payment
       if (paymentRow?.receiver_id) {
-        const caseInfo = paymentRow.case as unknown as { title: string } | null;
-        await supabase.from("notifications").insert({
-          user_id: paymentRow.receiver_id,
-          title: "Payment Received",
-          message: `A payment of PKR ${Number(paymentRow.amount).toLocaleString()} has been received for case "${caseInfo?.title || ""}".`,
-          type: "payment_completed",
-          reference_type: "case",
-          reference_id: caseId,
-        });
+        const caseInfo = paymentRow.case as unknown as { case_number: string; title: string } | null;
+        const receiverInfo = paymentRow.receiver as unknown as { email: string; full_name: string } | null;
+        
+        if (receiverInfo?.email) {
+          await sendNotificationWithEmailAPI({
+            userId: paymentRow.receiver_id,
+            userEmail: receiverInfo.email,
+            title: "Payment Received",
+            message: `A payment of PKR ${Number(paymentRow.amount).toLocaleString()} has been received for case "${caseInfo?.title || ""}".`,
+            type: "payment_completed",
+            referenceType: "case",
+            referenceId: caseId,
+            emailTemplate: "payment_received",
+            emailData: {
+              caseNumber: caseInfo?.case_number || "N/A",
+              caseTitle: caseInfo?.title || "Your Case",
+              amount: Number(paymentRow.amount).toLocaleString(),
+              caseLink: `/cases/${caseId}`,
+            },
+          });
+        }
       }
 
       // If no more pending payments, transition case status
@@ -147,14 +165,37 @@ export function usePayments() {
         });
 
         // Notify the payer (client) about full payment confirmation
-        await supabase.from("notifications").insert({
-          user_id: user.id,
-          title: "Payment Confirmed",
-          message: `All payments have been confirmed for your case. Your case will now proceed to the next stage.`,
-          type: "payment_completed",
-          reference_type: "case",
-          reference_id: caseId,
-        });
+        const { data: userProfile } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", user.id)
+          .single();
+        
+        const { data: caseData } = await supabase
+          .from("cases")
+          .select("case_number, title")
+          .eq("id", caseId)
+          .single();
+        
+        if (userProfile?.email) {
+          await sendNotificationWithEmailAPI({
+            userId: user.id,
+            userEmail: userProfile.email,
+            title: "Payment Confirmed",
+            message: `All payments have been confirmed for your case. Your case will now proceed to the next stage.`,
+            type: "payment_completed",
+            referenceType: "case",
+            referenceId: caseId,
+            emailTemplate: "payment_received",
+            emailData: {
+              caseNumber: caseData?.case_number || "N/A",
+              caseTitle: caseData?.title || "Your Case",
+              amount: "All installments",
+              caseLink: `/cases/${caseId}`,
+              nextStep: "Your case will now proceed to drafting stage.",
+            },
+          });
+        }
       }
 
       await fetchPayments();

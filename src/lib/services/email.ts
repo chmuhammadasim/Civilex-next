@@ -16,7 +16,19 @@
 
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization to avoid errors when imported on client-side
+let resend: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  // Only initialize on server-side where RESEND_API_KEY is available
+  if (typeof window === "undefined") {
+    if (!resend && process.env.RESEND_API_KEY) {
+      resend = new Resend(process.env.RESEND_API_KEY);
+    }
+    return resend;
+  }
+  return null; // Client-side: return null (emails shouldn't be sent from browser anyway)
+}
 
 const FROM_EMAIL = process.env.EMAIL_FROM || "Civilex <noreply@civilex.pk>";
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -88,6 +100,12 @@ export interface EmailPayload {
  * Errors are logged but don't throw to avoid breaking primary operations.
  */
 export async function sendCaseEmail(payload: EmailPayload): Promise<boolean> {
+  // Skip if running on client-side (should never happen, but safety check)
+  if (typeof window !== "undefined") {
+    console.warn("[EMAIL] Cannot send emails from client-side");
+    return false;
+  }
+
   // Skip in development unless explicitly enabled
   if (process.env.NODE_ENV === "development" && !process.env.ENABLE_EMAILS) {
     console.log("[EMAIL] Skipped (dev mode):", {
@@ -98,8 +116,9 @@ export async function sendCaseEmail(payload: EmailPayload): Promise<boolean> {
     return true;
   }
 
-  // Skip if Resend API key is not configured
-  if (!process.env.RESEND_API_KEY) {
+  // Get Resend client (will be null if API key not configured)
+  const client = getResendClient();
+  if (!client) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[EMAIL] Resend API key not configured. Email not sent:", payload.template);
     }
@@ -110,7 +129,7 @@ export async function sendCaseEmail(payload: EmailPayload): Promise<boolean> {
     const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
     const { subject, html, text } = generateEmailContent(payload.template, payload.data);
 
-    await resend.emails.send({
+    await client.emails.send({
       from: FROM_EMAIL,
       to: recipients,
       cc: payload.cc,
