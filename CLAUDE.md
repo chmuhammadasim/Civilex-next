@@ -246,6 +246,23 @@ Next.js 16 + TypeScript + Supabase app for managing civil, criminal, and family 
 - **Suggested Fix:** Add a valid transitions map and verify `newStatus` is a valid successor of `currentStatus`.
 - **Affected Files:** `src/hooks/useCases.ts`
 
+### BUG-033: Case Number Generation Race Condition Causes Duplicate Key Violations
+- **Severity:** Critical
+- **Type:** Race Condition / Data Integrity
+- **Status:** ✅ Fixed
+- **Where:** [useCases.ts:148-156](src/hooks/useCases.ts#L148-L156) (old code)
+- **Description:** The old case number generation used a two-step process: 1) Call `generate_case_number()` RPC → 2) INSERT with returned number. The advisory lock in the RPC function was transaction-scoped, releasing BEFORE the INSERT completed. This created a race window where concurrent requests could both read the same MAX value and generate identical case numbers, causing the second INSERT to fail with `duplicate key value violates unique constraint "cases_case_number_key"`.
+- **Steps to Reproduce:**
+  1. Two users simultaneously create cases of the same type (e.g., civil)
+  2. Both RPC calls complete and return "CIV-2026-0001"
+  3. First INSERT succeeds
+  4. Second INSERT fails with unique constraint violation
+- **Expected:** Each case gets a unique sequential case number
+- **Actual:** Concurrent requests can generate duplicate numbers
+- **Fix:** Replaced two-step process with a BEFORE INSERT trigger (`auto_generate_case_number()`) that generates the case number atomically within the same transaction as the INSERT. The advisory lock is now held for the entire transaction, preventing race conditions.
+- **Migration:** [00034_fix_case_number_race_condition.sql](supabase/migrations/00034_fix_case_number_race_condition.sql)
+- **Affected Files:** `src/hooks/useCases.ts`, `supabase/schema.sql`
+
 ## Testing Log
 
 | Date | Action | Result | Notes |
@@ -255,6 +272,8 @@ Next.js 16 + TypeScript + Supabase app for managing civil, criminal, and family 
 | 2026-03-29 | Re-test after fixes (/test-all) | 10 new bugs found | 2 High, 5 Medium, 3 Low — plus verification of prior fixes |
 | 2026-03-29 | Bug fix batch 2 | 9 fixed, 1 accepted risk | BUG-016-024 fixed; BUG-025 accepted risk |
 | 2026-03-29 | Re-test 3 (/test-all) | 7 new bugs found | 1 High, 4 Medium, 2 Low — all prior fixes verified |
+| 2026-04-25 | Production bug report | BUG-033 found | Critical: duplicate case number race condition causing DB constraint violations |
+| 2026-04-25 | Emergency fix | BUG-033 fixed | Replaced RPC-based generation with atomic BEFORE INSERT trigger |
 
 ---
 

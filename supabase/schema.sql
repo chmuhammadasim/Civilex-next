@@ -191,6 +191,11 @@ CREATE TRIGGER cases_updated_at
   BEFORE UPDATE ON public.cases
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+CREATE TRIGGER trigger_auto_generate_case_number
+  BEFORE INSERT ON public.cases
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_generate_case_number();
+
 -- ── criminal_case_details ────────────────────────────────────
 CREATE TABLE public.criminal_case_details (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -619,33 +624,49 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- ============================================================
--- FUNCTION: generate_case_number (race-safe, family-aware)
+-- FUNCTION: auto_generate_case_number (BEFORE INSERT trigger)
+-- Race-safe case number generation using advisory locks
+-- SECURITY DEFINER ensures it bypasses RLS policies
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.generate_case_number(p_case_type public.case_type)
-RETURNS TEXT AS $$
+CREATE OR REPLACE FUNCTION public.auto_generate_case_number()
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
-  prefix   TEXT;
-  seq      INTEGER;
+  prefix TEXT;
+  seq    INTEGER;
   lock_key BIGINT;
 BEGIN
-  prefix := CASE p_case_type
+  -- Only generate if case_number is NULL or empty
+  IF NEW.case_number IS NOT NULL AND NEW.case_number != '' THEN
+    RETURN NEW;
+  END IF;
+
+  prefix := CASE NEW.case_type
     WHEN 'civil'    THEN 'CIV'
     WHEN 'criminal' THEN 'CRM'
     WHEN 'family'   THEN 'FAM'
     ELSE 'CAS'
   END;
 
-  lock_key := hashtext(p_case_type::TEXT);
+  -- Advisory lock keyed by case_type to prevent concurrent duplicates
+  -- Lock is held for the duration of the transaction (including the INSERT)
+  lock_key := hashtext(NEW.case_type::TEXT);
   PERFORM pg_advisory_xact_lock(lock_key);
 
+  -- Find next sequence number for this case type and year
   SELECT COALESCE(MAX(CAST(SPLIT_PART(case_number, '-', 3) AS INTEGER)), 0) + 1
   INTO seq
   FROM public.cases
-  WHERE case_type = p_case_type
+  WHERE case_type = NEW.case_type
     AND SPLIT_PART(case_number, '-', 2) = EXTRACT(YEAR FROM now())::TEXT;
 
-  RETURN prefix || '-' || EXTRACT(YEAR FROM now())::TEXT || '-' || LPAD(seq::TEXT, 4, '0');
+  -- Generate the case number
+  NEW.case_number := prefix || '-' || EXTRACT(YEAR FROM now())::TEXT || '-' || LPAD(seq::TEXT, 4, '0');
+  
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

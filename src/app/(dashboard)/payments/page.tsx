@@ -152,19 +152,19 @@ export default function PaymentsPage() {
             </p>
           </div>
           <div className="rounded-lg border border-border bg-cream-light p-4">
-            <p className="text-sm text-muted">Total Transactions</p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-sm text-muted">Total Payments</p>
+            <p className="text-2xl font-bold text-primary-dark">
               {payments.length}
             </p>
           </div>
         </div>
 
         {/* Search */}
-        <div className="mb-6 max-w-md">
-          <div className="relative">
+        <div className="mb-4 flex items-center gap-4">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
-              placeholder="Search by case number or transaction ID..."
+              placeholder="Search by case number, title, or transaction ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
@@ -172,39 +172,46 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Payments Table */}
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" />
+          <div className="flex items-center justify-center py-12">
+            <Spinner />
           </div>
-        ) : filtered.length === 0 && !search ? (
+        ) : filtered.length === 0 ? (
           <EmptyState
-            title="No payments yet"
-            description="Payment records will appear here when cases are accepted by lawyers."
             icon={<CreditCard className="h-12 w-12" />}
+            title={payments.length === 0 ? "No payments yet" : "No payments found"}
+            description={
+              payments.length === 0
+                ? user?.role === "client"
+                  ? "Payments will appear here once a lawyer accepts your case and sets their fee. Court fees will also be listed when your case is submitted for registration."
+                  : user?.role === "lawyer"
+                  ? "You'll see payment records here once you accept cases and set your fee. Clients will pay you through this system."
+                  : "Payment records from all cases will appear here."
+                : "Try adjusting your search"
+            }
           />
         ) : (
-          <Table
-            columns={columns}
+          <Table 
+            columns={columns} 
             data={filtered}
             keyExtractor={(item) => item.id}
-            emptyMessage="No payments match your search."
+          />
+        )}
+
+        {/* Payment Modal */}
+        {payingPayment && (
+          <PaymentForm
+            payment={payingPayment}
+            isOpen={true}
+            onClose={() => setPayingPayment(null)}
+            onSuccess={() => {
+              setPayingPayment(null);
+              fetchPayments();
+            }}
           />
         )}
       </div>
-
-      {/* Payment Modal */}
-      {payingPayment && (
-        <PaymentForm
-          payment={payingPayment}
-          isOpen={!!payingPayment}
-          onClose={() => setPayingPayment(null)}
-          onSuccess={() => {
-            setPayingPayment(null);
-            fetchPayments();
-          }}
-        />
-      )}
     </div>
   );
 }

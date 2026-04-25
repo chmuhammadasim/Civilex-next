@@ -69,6 +69,18 @@ export default function PaymentForm({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Safety checks
+  if (!payment || !payment.id || !payment.amount) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Error">
+        <div className="py-6 text-center">
+          <p className="text-sm text-danger">Invalid payment data. Please try again.</p>
+          <Button className="mt-4" onClick={onClose}>Close</Button>
+        </div>
+      </Modal>
+    );
+  }
+
   const handleMethodSelect = (method: PaymentMethod) => {
     setSelectedMethod(method);
     setStep("details");
