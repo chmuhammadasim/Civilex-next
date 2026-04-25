@@ -196,6 +196,16 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
     );
   }
 
+  // Extract all statuses that have been visited (from status_changed actions)
+  const visitedStatuses = new Set<string>();
+  activities.forEach(activity => {
+    if (activity.action === "status_changed" && activity.details && typeof activity.details === "object" && "new_status" in activity.details) {
+      visitedStatuses.add(String(activity.details.new_status));
+    }
+  });
+  // Always include current status
+  visitedStatuses.add(currentStatus);
+
   return (
     <div className="space-y-6">
       {/* ── 7-Stage Visual Pipeline ── */}
@@ -289,7 +299,7 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
       {/* ── Detailed Status Progress ── */}
       <Card>
         <h3 className="mb-4 text-lg font-semibold text-primary">Status Progress</h3>
-        <DetailedStatusStepper currentStatus={currentStatus} />
+        <DetailedStatusStepper currentStatus={currentStatus} visitedStatuses={visitedStatuses} />
       </Card>
 
       {/* ── Activity Log ── */}
@@ -374,7 +384,7 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
 
 // ── Detailed status stepper (windowed, existing behaviour) ─────────────────────
 
-function DetailedStatusStepper({ currentStatus }: { currentStatus: string }) {
+function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStatus: string; visitedStatuses: Set<string> }) {
   const statusSteps = [
     "draft",
     "pending_lawyer_acceptance",
@@ -435,8 +445,9 @@ function DetailedStatusStepper({ currentStatus }: { currentStatus: string }) {
       <div className="space-y-0">
         {visibleSteps.map((step, i) => {
           const globalIndex = windowStart + i;
-          const isCompleted = globalIndex < currentStepIndex;
           const isCurrent = globalIndex === currentStepIndex;
+          const wasVisited = visitedStatuses.has(step);
+          const isCompleted = globalIndex < currentStepIndex || (wasVisited && !isCurrent);
 
           return (
             <div key={step} className="flex gap-3">
