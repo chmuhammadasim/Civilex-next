@@ -128,10 +128,25 @@ const PIPELINE_STAGES: PipelineStage[] = [
 
 function getStagePipelineState(
   stage: PipelineStage,
-  status: string
+  status: string,
+  visitedStatuses: Set<string>,
+  completedActivities: Set<string>
 ): "completed" | "active" | "future" {
+  // Check if current status indicates completion or active
   if (stage.completedWhen.includes(status)) return "completed";
   if (stage.activeWhen.includes(status)) return "active";
+  
+  // Check if any of the stage's statuses have been visited (handles backward movement)
+  const hasVisitedThisStage = stage.activeWhen.some(s => visitedStatuses.has(s)) ||
+                              stage.completedWhen.some(s => visitedStatuses.has(s));
+  
+  if (hasVisitedThisStage) return "completed";
+  
+  // Check for specific activity-based completions
+  if (stage.id === "judge" && completedActivities.has("judge_assigned")) return "completed";
+  if (stage.id === "hearings" && completedActivities.has("hearing_scheduled")) return "completed";
+  if (stage.id === "summon" && completedActivities.has("summon_issued")) return "completed";
+  
   return "future";
 }
 
@@ -198,9 +213,15 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
 
   // Extract all statuses that have been visited (from status_changed actions)
   const visitedStatuses = new Set<string>();
+  const completedActivities = new Set<string>();
+  
   activities.forEach(activity => {
     if (activity.action === "status_changed" && activity.details && typeof activity.details === "object" && "new_status" in activity.details) {
       visitedStatuses.add(String(activity.details.new_status));
+    }
+    // Track specific activities that mark stages as completed
+    if (["judge_assigned", "hearing_scheduled", "summon_issued"].includes(activity.action)) {
+      completedActivities.add(activity.action);
     }
   });
   // Always include current status
@@ -216,7 +237,7 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
         <div className="overflow-x-auto pb-2">
           <div className="flex min-w-max items-start gap-0">
             {PIPELINE_STAGES.map((stage, i) => {
-              const state = getStagePipelineState(stage, currentStatus);
+              const state = getStagePipelineState(stage, currentStatus, visitedStatuses, completedActivities);
               const Icon = stage.icon;
               const isLast = i === PIPELINE_STAGES.length - 1;
 
@@ -267,8 +288,8 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
                     <div className="mt-6 flex-1 self-start">
                       <div
                         className={`h-0.5 w-8 ${
-                          getStagePipelineState(stage, currentStatus) === "completed" &&
-                          getStagePipelineState(PIPELINE_STAGES[i + 1], currentStatus) !== "future"
+                          getStagePipelineState(stage, currentStatus, visitedStatuses, completedActivities) === "completed" &&
+                          getStagePipelineState(PIPELINE_STAGES[i + 1], currentStatus, visitedStatuses, completedActivities) !== "future"
                             ? "bg-success"
                             : "bg-cream-dark"
                         }`}
@@ -283,7 +304,7 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
 
         {/* Current stage description */}
         {(() => {
-          const activeStage = PIPELINE_STAGES.find((s) => getStagePipelineState(s, currentStatus) === "active");
+          const activeStage = PIPELINE_STAGES.find((s) => getStagePipelineState(s, currentStatus, visitedStatuses, completedActivities) === "active");
           const stage = activeStage ?? PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
           return (
             <div className="mt-4 rounded-lg bg-cream-light px-4 py-3">
