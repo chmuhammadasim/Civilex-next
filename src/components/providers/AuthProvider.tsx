@@ -91,6 +91,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           isLoading: false,
           isAuthenticated: true,
         });
+
+        // Auto-link defendants by email (non-blocking)
+        if (profile.role === "client") {
+          fetch("/api/cases/link-defendant", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          }).catch((err) => {
+            console.error("[AuthProvider] Auto-link failed:", err);
+          });
+        }
       } catch {
         setState({ user: null, lawyerProfile: null, isLoading: false, isAuthenticated: false });
       }

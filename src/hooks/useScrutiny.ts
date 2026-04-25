@@ -94,38 +94,26 @@ export function useScrutiny(caseId: string) {
     proper_format: boolean;
     decision: ScrutinyDecision;
     remarks?: string;
+    return_to?: "plaintiff" | "defendant" | "both";
   }) => {
     if (!user) return { error: "Not authenticated" };
 
     try {
       const supabase = createClient();
 
-      // Upsert the scrutiny checklist
+      // Insert a new scrutiny checklist entry (don't upsert, to preserve audit trail)
       const { error: scrutinyError } = await supabase
         .from("scrutiny_checklist")
-        .upsert({
+        .insert({
           case_id: caseId,
           reviewed_by: user.id,
           ...data,
           reviewed_at: data.decision !== "pending" ? new Date().toISOString() : null,
-        }, { onConflict: "case_id" })
-        .select()
-        .single();
+        });
 
-      // If upsert with onConflict doesn't work (no unique constraint on case_id),
-      // do insert instead
       if (scrutinyError) {
-        // Try plain insert
-        const { error: insertError } = await supabase
-          .from("scrutiny_checklist")
-          .insert({
-            case_id: caseId,
-            reviewed_by: user.id,
-            ...data,
-            reviewed_at: data.decision !== "pending" ? new Date().toISOString() : null,
-          });
-
-        if (insertError) return { error: insertError.message };
+        console.error("Error inserting scrutiny:", scrutinyError);
+        return { error: scrutinyError.message };
       }
 
       // Update case status based on decision
@@ -216,40 +204,74 @@ export function useScrutiny(caseId: string) {
           case_id: caseId,
           actor_id: user.id,
           action: "scrutiny_returned",
-          details: { remarks: data.remarks },
+          details: { 
+            remarks: data.remarks,
+            return_to: data.return_to || "both",
+          },
         });
 
-        // Notify case parties
+        // Get case and assignment details
         const { data: caseRow } = await supabase
           .from("cases")
-          .select("plaintiff_id, title")
+          .select(`
+            plaintiff_id, 
+            defendant_id,
+            title,
+            case_assignments(lawyer_id, side, status)
+          `)
           .eq("id", caseId)
           .single();
 
-        if (caseRow?.plaintiff_id) {
+        const returnTarget = data.return_to || "both";
+        const message = `Your case "${caseRow?.title}" has been returned for revision. Please address the following:\n\n${data.remarks || "Please review and resubmit."}`;
+
+        // Notify plaintiff side (client + plaintiff lawyer)
+        if ((returnTarget === "plaintiff" || returnTarget === "both") && caseRow?.plaintiff_id) {
           await supabase.from("notifications").insert({
             user_id: caseRow.plaintiff_id,
             title: "Case Returned for Revision",
-            message: `Your case "${caseRow.title}" has been returned for revision. Remarks: ${data.remarks || "Please review and resubmit."}`,
+            message,
             type: "scrutiny_returned",
             reference_type: "case",
             reference_id: caseId,
           });
+
+          // Notify plaintiff's lawyer
+          const plaintiffLawyer = (caseRow.case_assignments as any)?.find(
+            (a: any) => a.side === "plaintiff" && a.status === "accepted"
+          );
+          if (plaintiffLawyer?.lawyer_id) {
+            await supabase.from("notifications").insert({
+              user_id: plaintiffLawyer.lawyer_id,
+              title: "Case Returned for Revision",
+              message,
+              type: "scrutiny_returned",
+              reference_type: "case",
+              reference_id: caseId,
+            });
+          }
         }
 
-        // Notify assigned lawyers
-        const { data: assignments } = await supabase
-          .from("case_assignments")
-          .select("lawyer_id")
-          .eq("case_id", caseId)
-          .eq("status", "accepted");
+        // Notify defendant side (client + defendant lawyer)
+        if ((returnTarget === "defendant" || returnTarget === "both") && caseRow?.defendant_id) {
+          await supabase.from("notifications").insert({
+            user_id: caseRow.defendant_id,
+            title: "Case Returned for Revision",
+            message,
+            type: "scrutiny_returned",
+            reference_type: "case",
+            reference_id: caseId,
+          });
 
-        if (assignments) {
-          for (const a of assignments) {
+          // Notify defendant's lawyer
+          const defendantLawyer = (caseRow.case_assignments as any)?.find(
+            (a: any) => a.side === "defendant" && a.status === "accepted"
+          );
+          if (defendantLawyer?.lawyer_id) {
             await supabase.from("notifications").insert({
-              user_id: a.lawyer_id,
+              user_id: defendantLawyer.lawyer_id,
               title: "Case Returned for Revision",
-              message: `Case "${caseRow?.title}" has been returned. Remarks: ${data.remarks || "Please review."}`,
+              message,
               type: "scrutiny_returned",
               reference_type: "case",
               reference_id: caseId,
