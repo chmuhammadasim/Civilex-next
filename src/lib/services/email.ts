@@ -85,6 +85,7 @@ export interface EmailData {
   orderText?: string;
   judgmentSummary?: string;
   nextStep?: string;
+  newStatus?: string;
 }
 
 export interface EmailPayload {
