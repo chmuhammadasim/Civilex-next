@@ -525,7 +525,7 @@ export function useCases() {
               caseNumber: caseRow?.case_number || "N/A",
               caseTitle: caseRow?.title || "Your Case",
               amount: feeAmount.toLocaleString(),
-              dueDate: "As soon as possible",
+              deadline: "As soon as possible",
               caseLink: `/cases/${caseId}`,
             },
           });
