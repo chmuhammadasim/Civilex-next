@@ -902,9 +902,9 @@ export function useCases() {
       // Determine email template based on status
       let emailTemplate: "case_registered" | "case_transferred" | "judgment_delivered" | "case_stayed" | "case_withdrawn" | "case_disposed" = "case_registered";
       if (newStatus === "judgment_delivered") emailTemplate = "judgment_delivered";
-      else if (newStatus === "case_transferred") emailTemplate = "case_transferred";
-      else if (newStatus === "case_stayed") emailTemplate = "case_stayed";
-      else if (newStatus === "case_withdrawn") emailTemplate = "case_withdrawn";
+      else if (newStatus === "transferred_to_trial") emailTemplate = "case_transferred";
+      else if (newStatus === "stayed") emailTemplate = "case_stayed";
+      else if (newStatus === "withdrawn") emailTemplate = "case_withdrawn";
       else if (newStatus === "disposed") emailTemplate = "case_disposed";
 
       for (const pid of partyIds) {
