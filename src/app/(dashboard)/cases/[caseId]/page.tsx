@@ -717,8 +717,8 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Client / Lawyer: File appeal after closure */}
-            {(user?.role === "client" || user?.role === "lawyer") && status === "closed" && (
+            {/* Client / Lawyer: File appeal after judgment or closure */}
+            {(user?.role === "client" || user?.role === "lawyer") && (status === "judgment_delivered" || status === "closed") && (
               <Button
                 size="sm"
                 variant="outline"

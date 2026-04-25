@@ -121,8 +121,8 @@ const PIPELINE_STAGES: PipelineStage[] = [
     label: "Decision / Reconciliation",
     description: "Judgment delivered or case reconciled",
     icon: Scale,
-    completedWhen: ["judgment_delivered", "closed", "disposed"],
-    activeWhen: ["reserved_for_judgment"],
+    completedWhen: ["under_execution", "satisfied", "appeal_filed", "closed", "disposed"],
+    activeWhen: ["reserved_for_judgment", "judgment_delivered"],
   },
 ];
 
@@ -146,6 +146,7 @@ function getStagePipelineState(
   if (stage.id === "judge" && completedActivities.has("judge_assigned")) return "completed";
   if (stage.id === "hearings" && completedActivities.has("hearing_scheduled")) return "completed";
   if (stage.id === "summon" && completedActivities.has("summon_issued")) return "completed";
+  if (stage.id === "decision" && completedActivities.has("judgment_delivered")) return "completed";
   
   return "future";
 }
@@ -220,7 +221,7 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
       visitedStatuses.add(String(activity.details.new_status));
     }
     // Track specific activities that mark stages as completed
-    if (["judge_assigned", "hearing_scheduled", "summon_issued"].includes(activity.action)) {
+    if (["judge_assigned", "hearing_scheduled", "summon_issued", "judgment_delivered"].includes(activity.action)) {
       completedActivities.add(activity.action);
     }
   });
