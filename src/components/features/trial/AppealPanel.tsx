@@ -235,6 +235,7 @@ export default function AppealPanel({
                 </label>
                 <select
                   value={forum}
+                  title="Select Appellate Forum"
                   onChange={(e) => onForumChange(e.target.value as AppealForum)}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   required
@@ -254,6 +255,7 @@ export default function AppealPanel({
                 </label>
                 <select
                   value={side}
+                  title="Set Side"
                   onChange={(e) => setSide(e.target.value as AppealSide)}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   required
@@ -284,6 +286,7 @@ export default function AppealPanel({
                   value={judgmentDateInput}
                   onChange={(e) => setJudgmentDateInput(e.target.value)}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  title="Select Judgment Date"
                   required
                 />
               </div>
@@ -297,6 +300,7 @@ export default function AppealPanel({
                   value={limitationDays}
                   onChange={(e) => setLimitationDays(Number(e.target.value))}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  title="Enter Limitation Period in Days"
                   required
                 />
               </div>
@@ -309,6 +313,7 @@ export default function AppealPanel({
                   value={filedOn}
                   onChange={(e) => setFiledOn(e.target.value)}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  title="Select Filed On Date"
                   required
                 />
               </div>
@@ -634,6 +639,7 @@ function AppealCard({
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={disposalStatus}
+                  title="Select Disposal Status"
                   onChange={(e) =>
                     setDisposalStatus(
                       e.target.value as

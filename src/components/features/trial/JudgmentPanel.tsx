@@ -231,6 +231,7 @@ export default function JudgmentPanel({
             </label>
             <select
               value={verdict}
+              title="Select Verdict"
               onChange={(e) => setVerdict(e.target.value)}
               className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
