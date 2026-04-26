@@ -94,9 +94,9 @@
 ### 🔔 Notifications & Email
 
 - **In-App Notifications**: Real-time updates via Supabase Realtime
-- **Email Notifications**: 22+ email templates via Resend
+- **Email Notifications**: 22+ email templates via Gmail SMTP
 - **Email Templates**: Case accepted, payment reminder, hearing scheduled, judgment delivered, etc.
-- **Smart Routing**: API-based email delivery (server-side only)
+- **Smart Routing**: Server-side email delivery via nodemailer
 
 ### 💰 Payment System
 
@@ -143,7 +143,7 @@
 - **Authentication**: Supabase Auth (JWT-based)
 - **Storage**: Supabase Storage (Document uploads)
 - **Realtime**: Supabase Realtime (Notifications)
-- **Email Service**: [Resend](https://resend.com/)
+- **Email Service**: Gmail SMTP via [nodemailer](https://nodemailer.com/)
 - **AI Service**: [OpenAI](https://openai.com/) (GPT-4o-mini)
 
 ### Database Features
@@ -182,7 +182,7 @@
                 ▼                                   ▼
     ┌─────────────────────┐           ┌──────────────────────┐
     │   Supabase Client   │           │   External Services  │
-    │  - Auth             │           │   - Resend (Email)   │
+    │  - Auth             │           │   - Gmail SMTP       │
     │  - Database         │           │   - OpenAI (AI)      │
     │  - Storage          │           └──────────────────────┘
     │  - Realtime         │
@@ -235,7 +235,7 @@ cases ─────┬───────────┼─> case_assignment
 - **npm**: 9.x or higher (or yarn/pnpm)
 - **Git**: For cloning the repository
 - **Supabase Account**: [Sign up](https://supabase.com/)
-- **Resend Account**: [Sign up](https://resend.com/) (for email)
+- **Gmail Account**: With App Password enabled (for email)
 - **OpenAI API Key**: [Get key](https://platform.openai.com/) (for AI features)
 
 ### Clone Repository
@@ -269,9 +269,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 # App Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Email Service (Resend)
-RESEND_API_KEY=re_your_api_key
-EMAIL_FROM="Civilex <noreply@civilex.pk>"
+# Email Service (Gmail SMTP)
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=your_16_char_app_password
+EMAIL_FROM="Civilex <your-email@gmail.com>"
+ENABLE_EMAILS=true  # Set to false to disable in development
 
 # AI Service (OpenAI)
 OPENAI_API_KEY=sk-your-api-key
@@ -283,11 +285,15 @@ OPENAI_API_KEY=sk-your-api-key
 2. Go to **Project Settings** → **API**
 3. Copy **Project URL** and **anon/public key**
 
-### Getting Resend API Key
+### Getting Gmail App Password
 
-1. Sign up at [resend.com](https://resend.com/)
-2. Go to **API Keys** → Create new key
-3. Add your domain for production use
+1. Enable 2-Factor Authentication on your Google Account
+2. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+3. Select **Mail** → **Other (Custom name)** → Enter "Civilex"
+4. Click **Generate** and copy the 16-character password
+5. Paste it as `GMAIL_APP_PASSWORD` in `.env.local`
+
+See [EMAIL_INTEGRATION_GUIDE.md](EMAIL_INTEGRATION_GUIDE.md) for detailed setup instructions.
 
 ### Getting OpenAI API Key
 

@@ -1,7 +1,45 @@
-# Email Integration Examples
+# Email Integration Guide
 
-This file shows how to integrate email notifications into existing hooks.
-Follow these patterns to add emails to case flow events.
+This guide shows how to configure Gmail SMTP and integrate email notifications into the Civilex application.
+
+---
+
+## 🔧 Gmail SMTP Configuration
+
+### Step 1: Enable 2-Factor Authentication
+1. Go to your Google Account: https://myaccount.google.com/
+2. Navigate to **Security**
+3. Enable **2-Step Verification** (required for App Passwords)
+
+### Step 2: Generate App Password
+1. Go to: https://myaccount.google.com/apppasswords
+2. Select app: **Mail**
+3. Select device: **Other (Custom name)** → Enter "Civilex"
+4. Click **Generate**
+5. Copy the 16-character password (format: `xxxx xxxx xxxx xxxx`)
+
+### Step 3: Configure Environment Variables
+Add these to your `.env.local` file:
+
+```env
+# Email Configuration (Gmail SMTP)
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=abcd efgh ijkl mnop  # Paste the 16-char password here (spaces are OK)
+EMAIL_FROM=Civilex <your-email@gmail.com>
+ENABLE_EMAILS=true  # Set to false to disable emails in development
+```
+
+### Step 4: Test the Configuration
+Run the app and trigger any email-sending action (e.g., lawyer accepting a case). Check the terminal for email logs:
+```
+[EMAIL] Sent successfully: { to: ['user@example.com'], template: 'case_accepted', subject: 'Lawyer Accepted Your Case: CIV-2026-0001' }
+```
+
+---
+
+## 📧 Email Integration Patterns
+
+This section shows how to integrate email notifications into existing hooks.
 
 ## Pattern 1: Notify Single User (Lawyer Accepts Case)
 

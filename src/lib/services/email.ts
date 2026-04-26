@@ -1,7 +1,7 @@
 /**
  * email.ts
  *
- * Centralized email service using Resend.
+ * Centralized email service using Gmail SMTP via nodemailer.
  * Sends transactional emails to all parties (clients, lawyers, judges, court staff)
  * for case updates, hearings, summons, judgments, etc.
  *
@@ -14,23 +14,30 @@
  *   });
  */
 
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 
 // Lazy initialization to avoid errors when imported on client-side
-let resend: Resend | null = null;
+let transporter: Transporter | null = null;
 
-function getResendClient(): Resend | null {
-  // Only initialize on server-side where RESEND_API_KEY is available
+function getMailTransporter(): Transporter | null {
+  // Only initialize on server-side where Gmail credentials are available
   if (typeof window === "undefined") {
-    if (!resend && process.env.RESEND_API_KEY) {
-      resend = new Resend(process.env.RESEND_API_KEY);
+    if (!transporter && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.GMAIL_USER,
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      });
     }
-    return resend;
+    return transporter;
   }
   return null; // Client-side: return null (emails shouldn't be sent from browser anyway)
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Civilex <noreply@civilex.pk>";
+const FROM_EMAIL = process.env.EMAIL_FROM || process.env.GMAIL_USER || "noreply@civilex.pk";
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export type EmailTemplate =
@@ -117,11 +124,11 @@ export async function sendCaseEmail(payload: EmailPayload): Promise<boolean> {
     return true;
   }
 
-  // Get Resend client (will be null if API key not configured)
-  const client = getResendClient();
-  if (!client) {
+  // Get mail transporter (will be null if Gmail credentials not configured)
+  const mailer = getMailTransporter();
+  if (!mailer) {
     if (process.env.NODE_ENV !== "production") {
-      console.warn("[EMAIL] Resend API key not configured. Email not sent:", payload.template);
+      console.warn("[EMAIL] Gmail credentials not configured. Email not sent:", payload.template);
     }
     return false;
   }
@@ -130,11 +137,11 @@ export async function sendCaseEmail(payload: EmailPayload): Promise<boolean> {
     const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
     const { subject, html, text } = generateEmailContent(payload.template, payload.data);
 
-    await client.emails.send({
+    await mailer.sendMail({
       from: FROM_EMAIL,
-      to: recipients,
-      cc: payload.cc,
-      bcc: payload.bcc,
+      to: recipients.join(", "),
+      cc: payload.cc?.join(", "),
+      bcc: payload.bcc?.join(", "),
       subject,
       html,
       text,
