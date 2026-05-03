@@ -27,8 +27,8 @@ export default function ScrutinyQueuePage() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [selectedCaseTitle, setSelectedCaseTitle] = useState("");
 
-  // Only admin_court and magistrate should see this
-  if (user && !["admin_court", "magistrate"].includes(user.role)) {
+  // Only admin_court should see this
+  if (user && user.role !== "admin_court") {
     return (
       <div>
         <Topbar title="Scrutiny Queue" />

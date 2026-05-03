@@ -76,17 +76,47 @@ export default function AIDraftingModal({
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!draftedDocument) return;
-    const blob = new Blob([draftedDocument], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${documentType}_draft_${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    const lineHeight = 7;
+    let y = 20;
+
+    // Title
+    const label = DOCUMENT_TYPE_LABELS[documentType] ?? documentType.replace(/_/g, " ");
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(label.toUpperCase(), margin, y);
+    y += lineHeight * 1.5;
+
+    // Date
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
+    y += lineHeight * 1.5;
+
+    // Divider
+    doc.setDrawColor(180);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += lineHeight;
+
+    // Body text
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(draftedDocument, maxWidth) as string[];
+    for (const line of lines) {
+      if (y > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    }
+
+    doc.save(`${documentType}_draft_${Date.now()}.pdf`);
   };
 
   const handleUseDraft = () => {

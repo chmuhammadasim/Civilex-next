@@ -124,10 +124,28 @@ export default function CaseDocumentsPage({
         }}
         onUseDraft={async (draftedText, documentType) => {
           try {
-            // Convert drafted text to a file
-            const blob = new Blob([draftedText], { type: "text/plain" });
-            const fileName = `${documentType}_draft_${Date.now()}.txt`;
-            const file = new File([blob], fileName, { type: "text/plain" });
+            // Convert drafted text to a PDF file
+            const { jsPDF } = await import("jspdf");
+            const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 20;
+            const lineHeight = 7;
+            let y = 20;
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(documentType.replace(/_/g, " ").toUpperCase(), margin, y);
+            y += lineHeight * 1.5;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            const lines = doc.splitTextToSize(draftedText, pageWidth - margin * 2) as string[];
+            for (const line of lines) {
+              if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+              doc.text(line, margin, y);
+              y += lineHeight;
+            }
+            const pdfBlob = doc.output("blob");
+            const fileName = `${documentType}_draft_${Date.now()}.pdf`;
+            const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
             // Upload the document
             const result = await uploadDocument(

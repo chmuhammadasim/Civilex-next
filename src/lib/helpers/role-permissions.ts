@@ -49,13 +49,6 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "hearings.schedule",
     "documents.view",
   ],
-  magistrate: [
-    "cases.view_assigned",
-    "cases.conduct_hearing",
-    "orders.create",
-    "documents.view",
-    "hearings.schedule",
-  ],
   trial_judge: [
     "cases.view_assigned",
     "cases.conduct_hearing",

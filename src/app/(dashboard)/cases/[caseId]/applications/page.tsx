@@ -31,7 +31,6 @@ export default function CaseApplicationsPage({
   const isCriminal = caseData?.case_type === "criminal";
   const isCourtOfficial =
     user?.role === "admin_court" ||
-    user?.role === "magistrate" ||
     user?.role === "trial_judge";
   const canApplyBail = user?.role === "client" || user?.role === "lawyer";
 

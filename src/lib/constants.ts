@@ -4,7 +4,6 @@ export const ROLES = {
   CLIENT: "client",
   LAWYER: "lawyer",
   ADMIN_COURT: "admin_court",
-  MAGISTRATE: "magistrate",
   TRIAL_JUDGE: "trial_judge",
   STENOGRAPHER: "stenographer",
 } as const;
@@ -15,7 +14,6 @@ export const ROLE_LABELS: Record<Role, string> = {
   client: "Client",
   lawyer: "Lawyer",
   admin_court: "Admin Court",
-  magistrate: "Magistrate",
   trial_judge: "Trial Court Judge",
   stenographer: "Stenographer",
 };
@@ -200,14 +198,6 @@ export const SIDEBAR_NAV = {
   ],
   admin_court: [
     { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
-    { label: "Scrutiny", href: "/cases/scrutiny", icon: "ClipboardCheck" },
-    { label: "Cases", href: "/cases", icon: "Briefcase" },
-    { label: "Notifications", href: "/notifications", icon: "Bell" },
-    { label: "Settings", href: "/settings", icon: "Settings" },
-  ],
-  magistrate: [
-    { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
-    { label: "Criminal Cases", href: "/cases/criminal", icon: "Gavel" },
     { label: "Scrutiny", href: "/cases/scrutiny", icon: "ClipboardCheck" },
     { label: "Cases", href: "/cases", icon: "Briefcase" },
     { label: "Notifications", href: "/notifications", icon: "Bell" },

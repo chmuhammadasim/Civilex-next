@@ -27,7 +27,7 @@ export default function HearingsListPage({
   const { hearings, isLoading, createHearing } = useHearings(caseId);
   const [showForm, setShowForm] = useState(false);
 
-  const isCourtOfficial = user && ["admin_court", "magistrate", "trial_judge"].includes(user.role);
+  const isCourtOfficial = user && ["admin_court", "trial_judge"].includes(user.role);
 
   if (isLoading) {
     return (

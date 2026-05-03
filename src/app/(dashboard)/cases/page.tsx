@@ -29,11 +29,17 @@ export default function CasesPage() {
     fetchCases();
   }, [fetchCases]);
 
+  const searchLower = search.toLowerCase();
   const filtered = cases.filter(
     (c) =>
       c.status !== "disposed" &&
-      (c.title.toLowerCase().includes(search.toLowerCase()) ||
-        c.case_number.toLowerCase().includes(search.toLowerCase()))
+      (!searchLower ||
+        c.title.toLowerCase().includes(searchLower) ||
+        c.case_number.toLowerCase().includes(searchLower) ||
+        (c.plaintiff_name && c.plaintiff_name.toLowerCase().includes(searchLower)) ||
+        (c.defendant_name && c.defendant_name.toLowerCase().includes(searchLower)) ||
+        (c.plaintiff?.full_name && c.plaintiff.full_name.toLowerCase().includes(searchLower)) ||
+        (c.defendant?.full_name && c.defendant.full_name.toLowerCase().includes(searchLower)))
   );
 
   const columns = [
@@ -138,7 +144,7 @@ export default function CasesPage() {
           <div className="relative max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
-              placeholder="Search cases..."
+              placeholder="Search by case title, number, or party name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"

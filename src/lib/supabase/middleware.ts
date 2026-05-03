@@ -63,8 +63,8 @@ export async function updateSession(request: NextRequest) {
       // Define restricted routes that only specific roles can access
       const restrictedRoutes: Record<string, string[]> = {
         "/cases/new": ["client"],
-        "/cases/scrutiny": ["admin_court", "magistrate"],
-        "/cases/criminal": ["admin_court", "magistrate"],
+        "/cases/scrutiny": ["admin_court"],
+        "/cases/criminal": ["admin_court"],
         "/lawyers": ["client"],
         "/ai-assistant": ["lawyer"],
         "/stenographer": ["stenographer"],

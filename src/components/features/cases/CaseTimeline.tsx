@@ -407,37 +407,35 @@ export default function CaseTimeline({ caseId, currentStatus }: CaseTimelineProp
 // ── Detailed status stepper (windowed, existing behaviour) ─────────────────────
 
 function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStatus: string; visitedStatuses: Set<string> }) {
+  // 7-step simplified case flow (pre-registration steps are internal workflow)
   const statusSteps = [
-    "draft",
-    "pending_lawyer_acceptance",
-    "payment_pending",
-    "payment_confirmed",
-    "drafting",
-    "submitted_to_admin",
-    "under_scrutiny",
-    "returned_for_revision",
-    "registered",
-    "stayed",
-    "summon_issued",
-    "preliminary_hearing",
-    "issues_framed",
-    "transferred_to_trial",
-    "remanded",
-    "evidence_stage",
-    "arguments",
-    "reserved_for_judgment",
-    "judgment_delivered",
-    "under_execution",
-    "satisfied",
-    "appeal_filed",
-    "closed",
-    "withdrawn",
-    "disposed",
+    "registered",            // Step 1: Filing of Plaint
+    "summon_issued",         // Step 2: Issue of Summons
+    "preliminary_hearing",   // Step 3: Written Statement
+    "issues_framed",         // Step 4: Framing of Issues
+    "evidence_stage",        // Step 5: Evidence Stage
+    "arguments",             // Step 6: Final Arguments
+    "judgment_delivered",    // Step 7: Judgment Delivered & Decree
   ];
 
-  const currentStepIndex = statusSteps.indexOf(currentStatus);
-  const windowStart = Math.max(0, currentStepIndex - 2);
-  const windowEnd = Math.min(statusSteps.length, currentStepIndex + 4);
+  const STEP_LABELS: Record<string, string> = {
+    registered: "Filing of Plaint",
+    summon_issued: "Issue of Summons",
+    preliminary_hearing: "Written Statement",
+    issues_framed: "Framing of Issues",
+    evidence_stage: "Evidence Stage",
+    arguments: "Final Arguments",
+    judgment_delivered: "Judgment Delivered & Decree",
+  };
+
+  // For reserved_for_judgment, treat it as step 7 (sub-status before judgment)
+  const resolvedStatus = currentStatus === "reserved_for_judgment" ? "judgment_delivered" : currentStatus;
+  const currentStepIndex = statusSteps.indexOf(resolvedStatus);
+  // For statuses before registration (internal workflow), show step 0
+  const effectiveIndex = currentStepIndex === -1 ? -1 : currentStepIndex;
+
+  const windowStart = 0;
+  const windowEnd = statusSteps.length;
   const visibleSteps = statusSteps.slice(windowStart, windowEnd);
 
   return (
@@ -445,20 +443,22 @@ function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStat
       {/* Progress bar */}
       <div className="mb-4">
         <div className="flex items-center justify-between text-xs text-muted">
-          <span>Filed</span>
-          <span>Registered</span>
-          <span>Trial</span>
+          <span>Filing</span>
+          <span>Summons</span>
+          <span>Evidence</span>
           <span>Judgment</span>
         </div>
         <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-cream-dark">
           <div
-            className={`h-full rounded-full bg-primary transition-all duration-500 [width:${Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%]`}
+            className={`h-full rounded-full bg-primary transition-all duration-500 [width:${effectiveIndex === -1 ? 3 : Math.max(5, ((effectiveIndex + 1) / statusSteps.length) * 100)}%]`}
           />
         </div>
         <p className="mt-1.5 text-xs text-muted">
-          Step {currentStepIndex + 1} of {statusSteps.length} —{" "}
+          {effectiveIndex === -1 ? "Pre-registration" : `Step ${effectiveIndex + 1} of ${statusSteps.length}`} —{" "}
           <span className="font-medium text-primary">
-            {CASE_STATUS_LABELS[currentStatus as CaseStatus] || currentStatus}
+            {currentStatus === "reserved_for_judgment"
+              ? "Judge Reserved Order"
+              : STEP_LABELS[currentStatus] ?? CASE_STATUS_LABELS[currentStatus as CaseStatus] ?? currentStatus}
           </span>
         </p>
       </div>
@@ -466,10 +466,10 @@ function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStat
       {/* Step list */}
       <div className="space-y-0">
         {visibleSteps.map((step, i) => {
-          const globalIndex = windowStart + i;
-          const isCurrent = globalIndex === currentStepIndex;
+          const isCurrent = i === effectiveIndex;
+          const isCurrentReserved = step === "judgment_delivered" && currentStatus === "reserved_for_judgment";
           const wasVisited = visitedStatuses.has(step);
-          const isCompleted = globalIndex < currentStepIndex || (wasVisited && !isCurrent);
+          const isCompleted = i < effectiveIndex || (wasVisited && !isCurrent);
 
           return (
             <div key={step} className="flex gap-3">
@@ -483,7 +483,7 @@ function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStat
                         : "bg-cream-dark text-muted"
                   }`}
                 >
-                  {isCompleted ? <CheckCircle className="h-4 w-4" /> : globalIndex + 1}
+                  {isCompleted ? <CheckCircle className="h-4 w-4" /> : i + 1}
                 </div>
                 {i < visibleSteps.length - 1 && (
                   <div className={`h-8 w-0.5 ${isCompleted ? "bg-success" : "bg-cream-dark"}`} />
@@ -495,8 +495,11 @@ function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStat
                     isCurrent ? "text-primary" : isCompleted ? "text-success" : "text-muted"
                   }`}
                 >
-                  {CASE_STATUS_LABELS[step as CaseStatus] || step}
+                  {STEP_LABELS[step] ?? step}
                 </p>
+                {isCurrentReserved && (
+                  <p className="text-xs text-amber-600">Sub-status: Judge Reserved Order</p>
+                )}
                 {isCurrent && (
                   <Badge variant="primary" className="mt-1">
                     Current
@@ -507,12 +510,6 @@ function DetailedStatusStepper({ currentStatus, visitedStatuses }: { currentStat
           );
         })}
       </div>
-
-      {windowEnd < statusSteps.length && (
-        <p className="mt-2 text-center text-xs text-muted">
-          +{statusSteps.length - windowEnd} more steps remaining
-        </p>
-      )}
     </div>
   );
 }

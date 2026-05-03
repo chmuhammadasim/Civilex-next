@@ -158,10 +158,10 @@ export function useJudgeDrafts(caseId: string) {
           document_type: "court_order",
           title: draft.title,
           description: `Published by ${judgeName}.\n\n${draft.content}`,
-          file_path: `judge-drafts/${caseId}/${draftId}.txt`,
-          file_name: `${draft.title}.txt`,
+          file_path: `judge-drafts/${caseId}/${draftId}.pdf`,
+          file_name: `${draft.title}.pdf`,
           file_size: new Blob([draft.content]).size,
-          mime_type: "text/plain",
+          mime_type: "application/pdf",
         })
         .select()
         .single();

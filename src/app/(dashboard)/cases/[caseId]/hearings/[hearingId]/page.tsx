@@ -64,7 +64,7 @@ export default function HearingDetailPage({
 
   const hearing = hearings.find((h) => h.id === hearingId);
 
-  const isCourtOfficial = user && ["admin_court", "magistrate", "trial_judge"].includes(user.role);
+  const isCourtOfficial = user && ["admin_court", "trial_judge"].includes(user.role);
   const isStenographer = user?.role === "stenographer";
   const isAssignedStenographer =
     isStenographer && caseData?.stenographer_id === user?.id;

@@ -29,9 +29,9 @@ export default function CriminalCasesPage() {
   const { cases, isLoading } = useCases();
   const [filter, setFilter] = useState<FilterTab>("all");
 
-  const isMagistrate = user?.role === "magistrate";
+  const isMagistrate = false;
   const isCourtOfficial =
-    user && ["admin_court", "magistrate", "trial_judge"].includes(user.role);
+    user && ["admin_court", "trial_judge"].includes(user.role);
 
   if (!isCourtOfficial) {
     return (

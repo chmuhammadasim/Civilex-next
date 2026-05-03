@@ -28,7 +28,7 @@ export default function CaseOrdersPage({
   const { hearings, isLoading: hearingsLoading } = useHearings(caseId);
 
   const isLoading = caseLoading || hearingsLoading;
-  const isJudge = user?.role === "trial_judge" || user?.role === "magistrate";
+  const isJudge = user?.role === "trial_judge";
 
   if (isLoading) {
     return (

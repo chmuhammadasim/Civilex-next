@@ -44,7 +44,7 @@ export function useCases() {
       } else if (user.role === "lawyer") {
         // Lawyer sees cases through assignments - RLS handles this
         // But we filter out cases where the lawyer declined the assignment
-      } else if (user.role === "admin_court" || user.role === "magistrate") {
+      } else if (user.role === "admin_court") {
         // Only show cases that have been submitted by a lawyer (filed)
         query = query.in("status", [
           "submitted_to_admin",
@@ -785,11 +785,11 @@ export function useCases() {
         details: {},
       });
 
-      // Notify magistrate
+      // Notify admin court officials
       const { data: magistrates } = await supabase
         .from("profiles")
         .select("id")
-        .in("role", ["magistrate", "admin_court"]);
+        .eq("role", "admin_court");
 
       const { data: caseRow } = await supabase
         .from("cases")

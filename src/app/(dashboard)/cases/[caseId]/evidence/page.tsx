@@ -33,7 +33,7 @@ export default function CaseEvidencePage({
 
   if (!caseData || !user) return null;
 
-  const isJudge = user.role === "trial_judge" || user.role === "magistrate";
+  const isJudge = user.role === "trial_judge";
   const isLawyer = user.role === "lawyer";
 
   return (

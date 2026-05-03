@@ -179,9 +179,9 @@ export default function DashboardPage() {
         })
       : [];
 
-  // Admin/Magistrate: cases pending scrutiny
+  // Admin Court: cases pending scrutiny
   const pendingScrutiny =
-    role === "admin_court" || role === "magistrate"
+    role === "admin_court"
       ? cases.filter((c) =>
           ["submitted_to_admin", "under_scrutiny"].includes(c.status)
         )
@@ -257,7 +257,7 @@ export default function DashboardPage() {
           href: "/cases",
         });
       }
-    } else if (role === "admin_court" || role === "magistrate") {
+    } else if (role === "admin_court") {
       base.push({
         label: "Pending Scrutiny",
         value: pendingScrutiny.length.toString(),
@@ -266,35 +266,16 @@ export default function DashboardPage() {
         bg: "bg-amber-50",
         href: "/cases/scrutiny",
       });
-      if (role === "admin_court") {
-        const awaitingSummons = cases.filter((c) => c.status === "registered").length;
-        if (awaitingSummons > 0) {
-          base.push({
-            label: "Awaiting Summons",
-            value: awaitingSummons.toString(),
-            icon: FileText,
-            color: "text-primary",
-            bg: "bg-primary/10",
-            href: "/cases",
-          });
-        }
-      }
-      if (role === "magistrate") {
-        const pendingBail = cases.filter(
-          (c) =>
-            c.case_type === "criminal" &&
-            (c.criminal_details as { bail_status?: string } | null | undefined)?.bail_status === "applied"
-        ).length;
-        if (pendingBail > 0) {
-          base.push({
-            label: "Bail Pending",
-            value: pendingBail.toString(),
-            icon: Shield,
-            color: "text-danger",
-            bg: "bg-red-50",
-            href: "/cases/criminal",
-          });
-        }
+      const awaitingSummons = cases.filter((c) => c.status === "registered").length;
+      if (awaitingSummons > 0) {
+        base.push({
+          label: "Awaiting Summons",
+          value: awaitingSummons.toString(),
+          icon: FileText,
+          color: "text-primary",
+          bg: "bg-primary/10",
+          href: "/cases",
+        });
       }
     } else if (role === "trial_judge") {
       base.push({
@@ -370,8 +351,7 @@ export default function DashboardPage() {
         return "Review case requests and manage your active matters.";
       case "admin_court":
         return "Review submitted cases and manage court administration.";
-      case "magistrate":
-        return "Oversee criminal matters and scrutiny processes.";
+
       case "trial_judge":
         return "Manage trial proceedings, evidence, and judgments.";
       case "stenographer":
@@ -402,6 +382,74 @@ export default function DashboardPage() {
             Sign Out
           </Button>
         </div>
+
+        {/* ── Tomorrow's Hearings (pinned at top, all roles) ── */}
+        {!isLoading && (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+          // For stenographer, use stenoRows; for other roles use cases
+          const tomorrowHearings = role === "stenographer"
+            ? stenoRows.filter((r) => r.hearing.scheduled_date?.slice(0, 10) === tomorrowStr)
+            : cases.filter(
+                (c) => c.next_hearing_date && c.next_hearing_date.slice(0, 10) === tomorrowStr
+              );
+
+          if (tomorrowHearings.length === 0) return null;
+
+          return (
+            <div className="mb-6 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 shadow-md">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-400">
+                  <Calendar className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-amber-800">
+                    🔔 Tomorrow&apos;s Hearings
+                  </h3>
+                  <p className="text-xs text-amber-700">
+                    {tomorrowHearings.length} hearing{tomorrowHearings.length > 1 ? "s" : ""} scheduled for tomorrow — be prepared!
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {role === "stenographer"
+                  ? (tomorrowHearings as typeof stenoRows).map(({ hearing }) => (
+                      <Link
+                        key={hearing.id}
+                        href={`/cases/${hearing.case_id}/hearings/${hearing.id}`}
+                        className="flex items-center justify-between rounded-lg border border-amber-300 bg-white p-3 hover:bg-amber-100"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{hearing.case?.title}</p>
+                          <p className="text-xs text-amber-700">
+                            {hearing.case?.case_number} · Hearing #{hearing.hearing_number}
+                            {hearing.courtroom && ` · ${hearing.courtroom}`}
+                          </p>
+                        </div>
+                        <Badge variant="warning">Tomorrow</Badge>
+                      </Link>
+                    ))
+                  : (tomorrowHearings as typeof cases).map((c) => (
+                      <Link
+                        key={c.id}
+                        href={`/cases/${c.id}`}
+                        className="flex items-center justify-between rounded-lg border border-amber-300 bg-white p-3 hover:bg-amber-100"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{c.title}</p>
+                          <p className="text-xs text-amber-700">
+                            {c.case_number} · {formatDate(c.next_hearing_date!)}
+                          </p>
+                        </div>
+                        <Badge variant="warning">Tomorrow</Badge>
+                      </Link>
+                    ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Stats grid with skeletons */}
         {isLoading ? (
@@ -615,8 +663,8 @@ export default function DashboardPage() {
               </Card>
             )}
 
-            {/* Admin/Magistrate: Pending Scrutiny Queue */}
-            {(role === "admin_court" || role === "magistrate") &&
+            {/* Admin Court: Pending Scrutiny Queue */}
+            {role === "admin_court" &&
               pendingScrutiny.length > 0 && (
                 <Card>
                   <div className="mb-4 flex items-center justify-between">
@@ -692,55 +740,6 @@ export default function DashboardPage() {
                             </p>
                           </div>
                           <Badge variant="primary">Issue Summons</Badge>
-                        </Link>
-                      ))}
-                  </div>
-                </Card>
-              )}
-
-            {/* Magistrate: Pending bail applications */}
-            {role === "magistrate" &&
-              cases.filter(
-                (c) =>
-                  c.case_type === "criminal" &&
-                  (c.criminal_details as { bail_status?: string } | null | undefined)?.bail_status === "applied"
-              ).length > 0 && (
-                <Card>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-lg font-semibold text-danger">
-                      <Shield className="h-5 w-5" />
-                      Pending Bail Applications
-                    </h3>
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-danger">
-                      Decision Required
-                    </span>
-                  </div>
-                  <p className="mb-3 text-xs text-muted">
-                    Review and decide on the following bail applications filed by defendants.
-                  </p>
-                  <div className="space-y-3">
-                    {cases
-                      .filter(
-                        (c) =>
-                          c.case_type === "criminal" &&
-                          (c.criminal_details as { bail_status?: string } | null | undefined)?.bail_status === "applied"
-                      )
-                      .slice(0, 5)
-                      .map((c) => (
-                        <Link
-                          key={c.id}
-                          href={`/cases/${c.id}`}
-                          className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3 transition-colors hover:bg-red-100"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{c.title}</p>
-                            <p className="text-xs text-muted">
-                              {c.case_number}
-                              {(c.criminal_details as { fir_number?: string } | null | undefined)?.fir_number &&
-                                ` · FIR: ${(c.criminal_details as { fir_number?: string }).fir_number}`}
-                            </p>
-                          </div>
-                          <Badge variant="danger">Bail Pending</Badge>
                         </Link>
                       ))}
                   </div>
@@ -1171,28 +1170,6 @@ export default function DashboardPage() {
                   <>
                     <Link href="/cases/scrutiny" className="block">
                       <Button variant="primary" className="w-full justify-start">
-                        <ClipboardCheck className="h-4 w-4" />
-                        Scrutiny Queue
-                      </Button>
-                    </Link>
-                    <Link href="/cases" className="block">
-                      <Button variant="outline" className="w-full justify-start">
-                        <Briefcase className="h-4 w-4" />
-                        All Cases
-                      </Button>
-                    </Link>
-                  </>
-                )}
-                {role === "magistrate" && (
-                  <>
-                    <Link href="/cases/criminal" className="block">
-                      <Button variant="primary" className="w-full justify-start">
-                        <Gavel className="h-4 w-4" />
-                        Criminal Cases
-                      </Button>
-                    </Link>
-                    <Link href="/cases/scrutiny" className="block">
-                      <Button variant="outline" className="w-full justify-start">
                         <ClipboardCheck className="h-4 w-4" />
                         Scrutiny Queue
                       </Button>

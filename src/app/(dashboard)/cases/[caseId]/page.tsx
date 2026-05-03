@@ -218,7 +218,7 @@ export default function CaseDetailPage({
   }
 
   const isLawyer = user?.role === "lawyer";
-  const isCourtOfficial = user && ["admin_court", "magistrate", "trial_judge"].includes(user.role);
+  const isCourtOfficial = user && ["admin_court", "trial_judge"].includes(user.role);
   const status = caseData.status as CaseStatus;
 
   // Show scrutiny tab for admin court or when case is in scrutiny-related statuses
@@ -239,7 +239,7 @@ export default function CaseDetailPage({
 
   // Show bail and investigation tabs for criminal cases
   const isCriminalCase = caseData.case_type === "criminal";
-  const isMagistrate = user?.role === "magistrate";
+  const isMagistrate = false;
   const isTrialJudge = user?.role === "trial_judge";
   const isStenographer = user?.role === "stenographer";
   const criminalDetails = caseData.criminal_details as CriminalCaseDetailsExtended | null;
@@ -297,16 +297,19 @@ export default function CaseDetailPage({
     ...(isCriminalCase ? [{ id: "investigation" as Tab, label: "Investigation" }] : []),
     ...(showHearingsTab ? [{ id: "hearings" as Tab, label: `Hearings (${hearings.length})` }] : []),
     ...(showIssuesTab ? [{ id: "issues" as Tab, label: `Issues (${issues.length})` }] : []),
-    ...(showScrutinyTab ? [{ id: "scrutiny" as Tab, label: "Scrutiny" }] : []),
+    // Scrutiny tab: hidden for stenographer and trial_judge
+    ...(showScrutinyTab && !isStenographer && !isTrialJudge ? [{ id: "scrutiny" as Tab, label: "Scrutiny" }] : []),
     ...(showTrialTabs ? [{ id: "evidence" as Tab, label: "Evidence" }] : []),
     ...(showTrialTabs ? [{ id: "witnesses" as Tab, label: "Witnesses" }] : []),
     ...(showTrialTabs ? [{ id: "judgment" as Tab, label: "Judgment" }] : []),
     ...(showDecreeTab ? [{ id: "decree" as Tab, label: "Decree" }] : []),
-    ...(showAppealTab ? [{ id: "appeals" as Tab, label: "Appeals" }] : []),
+    // Appeals tab: hidden for stenographer
+    ...(!isStenographer && showAppealTab ? [{ id: "appeals" as Tab, label: "Appeals" }] : []),
     ...(showExecutionTab ? [{ id: "execution" as Tab, label: "Execution" }] : []),
-    ...(showWrittenStatementTab ? [{ id: "written_statement" as Tab, label: "Written Statement" }] : []),
+    // Written Statement tab: hidden for stenographer and trial_judge
+    ...(showWrittenStatementTab && !isStenographer && !isTrialJudge ? [{ id: "written_statement" as Tab, label: "Written Statement" }] : []),
     { id: "timeline", label: "Timeline" },
-    ...((isMagistrate || isTrialJudge) ? [{ id: "my_drafts" as Tab, label: "My Drafts" }] : []),
+    ...(isTrialJudge ? [{ id: "my_drafts" as Tab, label: "My Drafts" }] : []),
   ];
 
   const handleAction = async (action: () => Promise<{ error: string | null }>) => {
@@ -322,34 +325,17 @@ export default function CaseDetailPage({
   };
 
   const statusSteps = [
-    "draft",
-    "pending_lawyer_acceptance",
-    "payment_pending",
-    "payment_confirmed",
-    "drafting",
-    "submitted_to_admin",
-    "under_scrutiny",
-    "returned_for_revision",
-    "registered",
-    "stayed",
-    "summon_issued",
-    "preliminary_hearing",
-    "issues_framed",
-    "transferred_to_trial",
-    "remanded",
-    "evidence_stage",
-    "arguments",
-    "reserved_for_judgment",
-    "judgment_delivered",
-    "under_execution",
-    "satisfied",
-    "appeal_filed",
-    "closed",
-    "withdrawn",
-    "disposed",
+    "registered",            // Step 1: Filing of Plaint
+    "summon_issued",         // Step 2: Issue of Summons
+    "preliminary_hearing",   // Step 3: Written Statement
+    "issues_framed",         // Step 4: Framing of Issues
+    "evidence_stage",        // Step 5: Evidence Stage
+    "arguments",             // Step 6: Final Arguments
+    "judgment_delivered",    // Step 7: Judgment Delivered & Decree
   ];
-
-  const currentStepIndex = statusSteps.indexOf(caseData.status);
+  // reserved_for_judgment is treated as a sub-status of step 7
+  const resolvedStatus = caseData.status === "reserved_for_judgment" ? "judgment_delivered" : caseData.status;
+  const currentStepIndex = statusSteps.indexOf(resolvedStatus);
 
   return (
     <div>
@@ -444,18 +430,22 @@ export default function CaseDetailPage({
           {/* Status progress bar */}
           <div className="mt-6">
             <div className="flex items-center justify-between text-xs text-muted">
-              <span>Filed</span>
-              <span>Registered</span>
-              <span>Trial</span>
+              <span>Filing</span>
+              <span>Summons</span>
+              <span>Evidence</span>
               <span>Judgment</span>
             </div>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-cream-dark">
               <div
-                className={`h-full rounded-full bg-primary transition-all [width:${Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%]`}
+                className={`h-full rounded-full bg-primary transition-all [width:${currentStepIndex === -1 ? 3 : Math.max(5, ((currentStepIndex + 1) / statusSteps.length) * 100)}%]`}
               />
             </div>
             <p className="mt-1 text-xs text-muted">
-              Current:{" "}
+              {caseData.status === "reserved_for_judgment"
+                ? "Judge Reserved Order (Step 7)"
+                : currentStepIndex === -1
+                  ? "Pre-registration — "
+                  : `Step ${currentStepIndex + 1} of ${statusSteps.length} — `}
               {CASE_STATUS_LABELS[caseData.status as CaseStatus] ||
                 caseData.status}
             </p>
@@ -525,7 +515,7 @@ export default function CaseDetailPage({
                   const { data } = await supabase
                     .from("profiles")
                     .select("id, full_name, email")
-                    .in("role", ["magistrate", "trial_judge"])
+                    .in("role", ["trial_judge"])
                     .order("full_name");
                   setJudgeList(data ?? []);
                   setShowAssignJudgeDialog(true);
@@ -1666,10 +1656,28 @@ export default function CaseDetailPage({
         }}
         onUseDraft={async (draftedText, documentType) => {
           try {
-            // Convert drafted text to a file
-            const blob = new Blob([draftedText], { type: "text/plain" });
-            const fileName = `${documentType}_draft_${Date.now()}.txt`;
-            const file = new File([blob], fileName, { type: "text/plain" });
+            // Convert drafted text to a PDF file
+            const { jsPDF } = await import("jspdf");
+            const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 20;
+            const lineHeight = 7;
+            let y = 20;
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(documentType.replace(/_/g, " ").toUpperCase(), margin, y);
+            y += lineHeight * 1.5;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            const lines = doc.splitTextToSize(draftedText, pageWidth - margin * 2) as string[];
+            for (const line of lines) {
+              if (y > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+              doc.text(line, margin, y);
+              y += lineHeight;
+            }
+            const pdfBlob = doc.output("blob");
+            const fileName = `${documentType}_draft_${Date.now()}.pdf`;
+            const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
             // Upload the document
             const result = await uploadDocument(
