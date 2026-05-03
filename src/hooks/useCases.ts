@@ -240,6 +240,13 @@ export function useCases() {
         });
       }
 
+      // Fire-and-forget email notification to plaintiff + defendant (server-side)
+      fetch("/api/cases/notify-filed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: newCase.id }),
+      }).catch(() => {}); // Non-critical; don't block case creation
+
       await fetchCases();
       return { error: null, data: newCase as Case };
     } catch (err) {

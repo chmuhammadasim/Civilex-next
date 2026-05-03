@@ -44,6 +44,7 @@ export type EmailTemplate =
   | "case_assigned" // Lawyer assigned to case
   | "case_accepted" // Lawyer accepted case
   | "case_declined" // Lawyer declined case
+  | "case_filed" // Case just filed — notify plaintiff + defendant
   | "payment_reminder" // Payment due reminder
   | "payment_received" // Payment confirmed
   | "case_submitted" // Case submitted to admin court
@@ -172,6 +173,33 @@ function generateEmailContent(
   const caseLink = data.caseLink || `${BASE_URL}/cases`;
   
   const templates: Record<EmailTemplate, { subject: string; html: string; text: string }> = {
+    case_filed: {
+      subject: `New Case Filed: ${data.caseNumber || data.caseTitle || ""}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <div style="background:#1a3a5c;padding:24px 32px;border-radius:8px 8px 0 0;">
+            <h1 style="color:#fff;margin:0;font-size:22px;">&#9878; Civilex — Judiciary Management System</h1>
+          </div>
+          <div style="background:#f9f7f2;padding:32px;border:1px solid #e8e0d0;border-top:none;border-radius:0 0 8px 8px;">
+            <h2 style="color:#1a3a5c;margin-top:0;">Case Filed</h2>
+            <p style="color:#444;">A new court case has been filed involving you.</p>
+            <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+              <tr><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;font-weight:bold;width:140px;">Case Number</td><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;">${data.caseNumber}</td></tr>
+              <tr><td style="padding:8px 12px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold;">Case Title</td><td style="padding:8px 12px;background:#f5f5f5;border:1px solid #ddd;">${data.caseTitle}</td></tr>
+              <tr><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;font-weight:bold;">Plaintiff</td><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;">${data.plaintiffName || "—"}</td></tr>
+              <tr><td style="padding:8px 12px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold;">Defendant</td><td style="padding:8px 12px;background:#f5f5f5;border:1px solid #ddd;">${data.defendantName || "—"}</td></tr>
+            </table>
+            ${data.message ? `<p style="color:#555;">${data.message}</p>` : ""}
+            <div style="margin-top:24px;">
+              <a href="${caseLink}" style="background:#1a3a5c;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">View Case Details</a>
+            </div>
+            <p style="margin-top:24px;font-size:12px;color:#888;">This is an automated notification from Civilex. Do not reply to this email.</p>
+          </div>
+        </div>
+      `,
+      text: `Case Filed\n\nA new case has been filed.\nCase Number: ${data.caseNumber}\nTitle: ${data.caseTitle}\nPlaintiff: ${data.plaintiffName || "—"}\nDefendant: ${data.defendantName || "—"}\n${data.message ? `\n${data.message}\n` : ""}\nView at: ${caseLink}`,
+    },
+
     case_assigned: {
       subject: `New Case Assignment: ${data.caseNumber || ""}`,
       html: `
@@ -272,16 +300,47 @@ function generateEmailContent(
     },
 
     summon_issued: {
-      subject: `Court Summon Issued: ${data.caseNumber || ""}`,
+      subject: `⚖️ Official Court Summon: ${data.caseNumber || ""}`,
       html: `
-        <h2>Court Summon Issued</h2>
-        <p>A summon has been issued for case <strong>${data.caseNumber}</strong>.</p>
-        <p><strong>Plaintiff:</strong> ${data.plaintiffName}</p>
-        <p><strong>Defendant:</strong> ${data.defendantName}</p>
-        <p>All parties are required to appear in court as scheduled.</p>
-        <p><a href="${caseLink}">View Summon Details</a></p>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          <div style="background:#8b1a1a;padding:24px 32px;border-radius:8px 8px 0 0;">
+            <h1 style="color:#fff;margin:0;font-size:22px;">&#9878; Civilex — Official Court Summon</h1>
+          </div>
+          <div style="background:#fff8f8;padding:32px;border:2px solid #c0392b;border-top:none;border-radius:0 0 8px 8px;">
+            <div style="background:#fdf2f2;border-left:4px solid #c0392b;padding:12px 16px;margin-bottom:20px;">
+              <strong style="color:#c0392b;">IMPORTANT LEGAL NOTICE</strong>
+              <p style="margin:4px 0 0;color:#555;font-size:14px;">You are required to respond to this summon within 30 days.</p>
+            </div>
+            <p style="color:#444;">Dear <strong>${data.defendantName}</strong>,</p>
+            <p style="color:#444;">You have been issued an official court summon in the following case:</p>
+            <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+              <tr><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;font-weight:bold;width:140px;">Case Number</td><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;">${data.caseNumber}</td></tr>
+              <tr><td style="padding:8px 12px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold;">Case Title</td><td style="padding:8px 12px;background:#f5f5f5;border:1px solid #ddd;">${data.caseTitle}</td></tr>
+              <tr><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;font-weight:bold;">Filed By</td><td style="padding:8px 12px;background:#fff;border:1px solid #ddd;">${data.plaintiffName || "Plaintiff"}</td></tr>
+            </table>
+            <h3 style="color:#8b1a1a;margin-top:24px;">What You Must Do:</h3>
+            <ol style="color:#444;line-height:1.8;">
+              <li>Register on the Civilex platform (if you haven't already)</li>
+              <li>Click the button below to access this case and claim your defendant role</li>
+              <li>Hire a lawyer or choose to self-represent</li>
+              <li>Submit your response and any relevant documents within 30 days</li>
+            </ol>
+            <div style="margin-top:24px;text-align:center;">
+              <a href="${caseLink}" style="background:#8b1a1a;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:16px;">Respond to Summon</a>
+            </div>
+            <p style="margin-top:16px;font-size:12px;color:#888;text-align:center;">
+              If the button doesn't work, copy this link into your browser:<br/>
+              <a href="${caseLink}" style="color:#8b1a1a;">${caseLink}</a>
+            </p>
+            <div style="margin-top:24px;padding:12px 16px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;">
+              <strong style="color:#856404;">Warning:</strong>
+              <span style="color:#555;"> Failure to respond within 30 days may result in an ex-parte decision against you.</span>
+            </div>
+            <p style="margin-top:24px;font-size:12px;color:#888;">This is an official court communication from Civilex Judiciary Management System. Do not ignore this notice.</p>
+          </div>
+        </div>
       `,
-      text: `Court Summon Issued\n\nSummon issued for case ${data.caseNumber}\nPlaintiff: ${data.plaintiffName}\nDefendant: ${data.defendantName}\n\nView at: ${caseLink}`,
+      text: `OFFICIAL COURT SUMMON\n\nDear ${data.defendantName},\n\nYou have been issued a court summon for case ${data.caseNumber} - ${data.caseTitle}.\nFiled by: ${data.plaintiffName || "Plaintiff"}\n\nYou MUST respond within 30 days.\n\nStep 1: Register at Civilex\nStep 2: Click this link to claim your case:\n${caseLink}\nStep 3: Hire a lawyer and submit your response\n\nFailure to respond may result in an ex-parte decision against you.`,
     },
 
     hearing_scheduled: {

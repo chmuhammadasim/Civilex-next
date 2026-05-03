@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -29,9 +29,12 @@ const specializationOptions = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") || "";
+  const prefilledRole = searchParams.get("role") || "";
   const { signUp, createLawyerProfile } = useAuth();
   const [formData, setFormData] = useState({
-    role: "",
+    role: prefilledRole,
     fullName: "",
     email: "",
     password: "",
@@ -121,7 +124,7 @@ export default function RegisterPage() {
       }
     }
 
-    router.push("/login?registered=true");
+    router.push(returnUrl ? `/login?registered=true&returnUrl=${encodeURIComponent(returnUrl)}` : "/login?registered=true");
   };
 
   return (

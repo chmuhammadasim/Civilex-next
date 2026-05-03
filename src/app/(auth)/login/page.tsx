@@ -28,6 +28,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "true";
+  const returnUrl = searchParams.get("returnUrl") || "";
   const { signIn } = useAuth();
   const [formData, setFormData] = useState({
     role: "",
@@ -59,7 +60,7 @@ function LoginForm() {
       setErrors({ form: error });
       setIsLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push(returnUrl || "/dashboard");
     }
   };
 

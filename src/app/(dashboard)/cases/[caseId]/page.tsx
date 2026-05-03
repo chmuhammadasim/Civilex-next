@@ -227,7 +227,7 @@ export default function CaseDetailPage({
   }
 
   const isLawyer = user?.role === "lawyer";
-  const isCourtOfficial = user && ["admin_court", "trial_judge"].includes(user.role);
+  const isCourtOfficial = user && ["admin_court", "trial_judge", "stenographer"].includes(user.role);
   const status = caseData.status as CaseStatus;
 
   // Show scrutiny tab for admin court or when case is in scrutiny-related statuses

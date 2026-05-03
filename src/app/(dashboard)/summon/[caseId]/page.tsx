@@ -27,18 +27,19 @@ export default function SummonPage({
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [status, setStatus] = useState<"idle" | "claiming" | "claimed" | "error">("idle");
   const [result, setResult] = useState<ClaimResult | null>(null);
   const [error, setError] = useState("");
 
-  // Auto-claim if token is present and user is authenticated
+  // Wait for auth to load, then either auto-claim or redirect to register
   useEffect(() => {
+    if (authLoading) return; // still loading
     if (!user || !token || status !== "idle") return;
     claimCase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, token]);
+  }, [authLoading, user, token]);
 
   const claimCase = async () => {
     if (!token) return;
@@ -112,11 +113,47 @@ export default function SummonPage({
           </Card>
 
           {/* Claiming status */}
-          {status === "idle" && !user && (
+          {/* Not authenticated: prompt to register or login */}
+          {!user && !authLoading && token && (
+            <Card>
+              <div className="flex flex-col items-center py-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
+                  <Scale className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Register to Respond</h3>
+                <p className="text-sm text-muted mb-6 max-w-sm">
+                  To access this case and respond to the summon, you need to create a Civilex account.
+                  Register using the email address where you received this summon — the case will be
+                  linked to your account automatically.
+                </p>
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                  <Link
+                    href={`/register?role=client&returnUrl=${encodeURIComponent(`/summon/${caseId}?token=${token}`)}`}
+                    className="w-full"
+                  >
+                    <Button variant="primary" className="w-full">
+                      Register &amp; Respond to Summon
+                    </Button>
+                  </Link>
+                  <Link
+                    href={`/login?returnUrl=${encodeURIComponent(`/summon/${caseId}?token=${token}`)}`}
+                    className="w-full"
+                  >
+                    <Button variant="outline" className="w-full">
+                      Already have an account? Log in
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Still loading auth */}
+          {!user && authLoading && (
             <Card>
               <div className="text-center py-4">
                 <Spinner />
-                <p className="mt-2 text-sm text-muted">Checking your session...</p>
+                <p className="mt-2 text-sm text-muted">Loading...</p>
               </div>
             </Card>
           )}
