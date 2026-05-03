@@ -13,6 +13,7 @@ import PaymentForm from "@/components/features/payments/PaymentForm";
 import { usePayments } from "@/hooks/usePayments";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { Download } from "lucide-react";
 import { Search, CreditCard } from "lucide-react";
 import type { PaymentWithRelations } from "@/types/payment";
 
@@ -127,6 +128,53 @@ export default function PaymentsPage() {
           <Link href={`/payments/${item.id}`}>
             <Button size="sm" variant="ghost">View</Button>
           </Link>
+          {item.status === "completed" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              title="Download Receipt"
+              onClick={async () => {
+                const { jsPDF } = await import("jspdf");
+                const doc = new jsPDF();
+                doc.setFontSize(18);
+                doc.setFont("helvetica", "bold");
+                doc.text("PAYMENT RECEIPT", 105, 20, { align: "center" });
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.text("Civilex — Judiciary Management System", 105, 28, { align: "center" });
+                doc.setLineWidth(0.5);
+                doc.line(14, 33, 196, 33);
+                const rows: [string, string][] = [
+                  ["Receipt ID", item.id.slice(0, 8).toUpperCase()],
+                  ["Transaction ID", item.transaction_id ?? "N/A"],
+                  ["Case Number", item.case?.case_number ?? "N/A"],
+                  ["Case Title", item.case?.title ?? "N/A"],
+                  ["Payment Type", item.payment_type.replace(/_/g, " ")],
+                  ["Amount", formatCurrency(item.amount)],
+                  ["Status", "Completed"],
+                  ["Paid On", item.paid_at ? formatDate(item.paid_at) : "N/A"],
+                  ["Payer", item.payer?.full_name ?? "N/A"],
+                  ["Receiver", item.receiver?.full_name ?? "N/A"],
+                ];
+                let y = 44;
+                for (const [label, value] of rows) {
+                  doc.setFont("helvetica", "bold");
+                  doc.text(label + ":", 20, y);
+                  doc.setFont("helvetica", "normal");
+                  doc.text(value, 80, y);
+                  y += 10;
+                }
+                doc.setLineWidth(0.3);
+                doc.line(14, y + 4, 196, y + 4);
+                doc.setFontSize(9);
+                doc.setTextColor(120);
+                doc.text("This is a computer-generated receipt and does not require a signature.", 105, y + 12, { align: "center" });
+                doc.save(`receipt-${item.id.slice(0, 8)}.pdf`);
+              }}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },

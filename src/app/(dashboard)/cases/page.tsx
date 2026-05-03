@@ -208,11 +208,19 @@ export default function CasesPage() {
           </div>
         ) : filtered.length === 0 && !search ? (
           <EmptyState
-            title="No cases yet"
+            title={canCreateCase ? "No cases filed yet" : "No cases found"}
             description={
-              canCreateCase
-                ? "Create your first case to get started."
-                : "Cases assigned to you will appear here."
+              user?.role === "client"
+                ? "You haven't filed any cases yet. Start by creating your first case."
+                : user?.role === "lawyer"
+                ? "You have no cases assigned to you yet. Cases will appear here once a client assigns you."
+                : user?.role === "admin_court"
+                ? "There are no cases pending review or scrutiny at this time."
+                : user?.role === "trial_judge"
+                ? "No cases have been assigned for trial yet."
+                : user?.role === "stenographer"
+                ? "No cases are assigned to you for transcription yet."
+                : "Cases will appear here once available."
             }
             icon={<Briefcase className="h-12 w-12" />}
             action={

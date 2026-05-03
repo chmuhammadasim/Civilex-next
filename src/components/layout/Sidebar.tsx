@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
   Gavel,
   Calendar,
+  CalendarDays,
   FileText,
   type LucideIcon,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const iconMap: Record<string, LucideIcon> = {
   ClipboardCheck,
   Gavel,
   Calendar,
+  CalendarDays,
   FileText,
 };
 

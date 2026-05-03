@@ -30,6 +30,7 @@ import { useCaseIssues } from "@/hooks/useCaseIssues";
 import { createClient } from "@/lib/supabase/client";
 import { useCase, useCases } from "@/hooks/useCases";
 import { useHearings } from "@/hooks/useHearings";
+import { useActivityLog, getActionLabel } from "@/hooks/useActivityLog";
 import { usePayments } from "@/hooks/usePayments";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentRequests } from "@/hooks/useDocumentRequests";
@@ -61,11 +62,12 @@ import {
   RotateCcw,
   PauseCircle,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Tab = "overview" | "documents" | "parties" | "hearings" | "scrutiny" | "bail" | "investigation" | "issues" | "evidence" | "witnesses" | "judgment" | "decree" | "appeals" | "execution" | "timeline" | "my_drafts" | "written_statement";
+type Tab = "overview" | "documents" | "parties" | "hearings" | "scrutiny" | "bail" | "investigation" | "issues" | "evidence" | "witnesses" | "judgment" | "decree" | "appeals" | "execution" | "timeline" | "my_drafts" | "written_statement" | "activity";
 
 export default function CaseDetailPage({
   params,
@@ -78,11 +80,12 @@ export default function CaseDetailPage({
   const { caseData, documents, isLoading, refreshCase } = useCase(caseId);
   const { submitToAdmin, startDrafting, issueSummon, updateCaseStatus, submitChallan, uploadDocument, deleteDocument, getDocumentUrl, withdrawCase } = useCases();
   const { requests: docRequests, createRequest: createDocRequest, fulfillRequest: fulfillDocRequest } = useDocumentRequests(caseId);
-  const { hearings, assignJudge, assignStenographer } = useHearings(caseId);
+  const { hearings, assignJudge, assignStenographer, rescheduleHearing } = useHearings(caseId);
   const { issues } = useCaseIssues(caseId);
   const { judgment } = useJudgment(caseId);
   const { decree } = useDecree(caseId);
   const { payments, syncCasePaymentStatus, isLoading: paymentsLoading } = usePayments();
+  const { logs: activityLogs, isLoading: activityLoading } = useActivityLog(caseId);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [showAssignJudgeDialog, setShowAssignJudgeDialog] = useState(false);
   const [judgeList, setJudgeList] = useState<{ id: string; full_name: string; email: string }[]>([]);
@@ -97,6 +100,12 @@ export default function CaseDetailPage({
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [showSummonDialog, setShowSummonDialog] = useState(false);
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [rescheduleHearingId, setRescheduleHearingId] = useState("");
+  const [rescheduleNewDate, setRescheduleNewDate] = useState("");
+  const [rescheduleReason, setRescheduleReason] = useState("");
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState("");
   const [showDocRequestDialog, setShowDocRequestDialog] = useState(false);
   const [docRequestForm, setDocRequestForm] = useState({ requested_from: "", document_type: "written_statement", title: "", description: "" });
   const [docRequestLoading, setDocRequestLoading] = useState(false);
@@ -310,6 +319,7 @@ export default function CaseDetailPage({
     ...(showWrittenStatementTab && !isStenographer && !isTrialJudge ? [{ id: "written_statement" as Tab, label: "Written Statement" }] : []),
     { id: "timeline", label: "Timeline" },
     ...(isTrialJudge ? [{ id: "my_drafts" as Tab, label: "My Drafts" }] : []),
+    { id: "activity" as Tab, label: "Activity" },
   ];
 
   const handleAction = async (action: () => Promise<{ error: string | null }>) => {
@@ -1453,9 +1463,26 @@ export default function CaseDetailPage({
                             {formatDate(h.scheduled_date)} • {h.status}
                           </p>
                         </div>
-                        <Link href={`/cases/${caseId}/hearings/${h.id}`}>
-                          <Button size="sm" variant="ghost">View</Button>
-                        </Link>
+                        <div className="flex gap-2">
+                          {isCourtOfficial && h.status === "scheduled" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setRescheduleHearingId(h.id);
+                                setRescheduleNewDate("");
+                                setRescheduleReason("");
+                                setRescheduleError("");
+                                setShowRescheduleDialog(true);
+                              }}
+                            >
+                              Adjourn
+                            </Button>
+                          )}
+                          <Link href={`/cases/${caseId}/hearings/${h.id}`}>
+                            <Button size="sm" variant="ghost">View</Button>
+                          </Link>
+                        </div>
                       </div>
                     </Card>
                   ))}
@@ -1620,6 +1647,51 @@ export default function CaseDetailPage({
               caseId={caseData.id}
               isDefendantLawyer={isDefendantLawyer}
             />
+          )}
+
+          {activeTab === "activity" && (
+            <div>
+              <h3 className="mb-4 text-lg font-semibold text-primary">Activity Log</h3>
+              {activityLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <EmptyState
+                  title="No activity yet"
+                  description="Actions taken on this case will appear here."
+                  icon={<Clock className="h-12 w-12" />}
+                />
+              ) : (
+                <div className="space-y-2">
+                  {activityLogs.map((log) => (
+                    <Card key={log.id} padding="sm">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                          <Clock className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">
+                            {getActionLabel(log.action)}
+                          </p>
+                          <p className="text-xs text-muted mt-0.5">
+                            {log.actor?.full_name ?? "System"} · {formatDate(log.created_at)}
+                          </p>
+                          {log.details && Object.keys(log.details).length > 0 && (
+                            <p className="mt-1 text-xs text-muted/80 truncate">
+                              {Object.entries(log.details)
+                                .filter(([k]) => !["case_id", "id"].includes(k))
+                                .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
+                                .join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -1827,6 +1899,70 @@ export default function CaseDetailPage({
               >
                 <Trash2 className="h-4 w-4" />
                 Yes, Withdraw
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule / Adjourn Hearing Dialog */}
+      {showRescheduleDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold text-primary">Adjourn / Reschedule Hearing</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium">New Hearing Date</label>
+                <input
+                  type="date"
+                  title="New hearing date"
+                  placeholder="Select date"
+                  className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={rescheduleNewDate}
+                  min={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setRescheduleNewDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Reason for Adjournment</label>
+                <textarea
+                  className="w-full rounded-lg border border-border bg-cream-light px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  rows={3}
+                  placeholder="State the reason for adjourning this hearing..."
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                />
+              </div>
+              {rescheduleError && (
+                <div className="rounded-lg border border-danger bg-danger/10 px-3 py-2 text-sm text-danger">
+                  {rescheduleError}
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowRescheduleDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                isLoading={rescheduleLoading}
+                onClick={async () => {
+                  if (!rescheduleNewDate) { setRescheduleError("Please select a new hearing date."); return; }
+                  if (!rescheduleReason.trim()) { setRescheduleError("Please provide a reason for adjournment."); return; }
+                  setRescheduleLoading(true);
+                  setRescheduleError("");
+                  const result = await rescheduleHearing(rescheduleHearingId, rescheduleNewDate, rescheduleReason.trim());
+                  setRescheduleLoading(false);
+                  if (result?.error) {
+                    setRescheduleError(result.error);
+                  } else {
+                    setShowRescheduleDialog(false);
+                  }
+                }}
+              >
+                Confirm Adjournment
               </Button>
             </div>
           </div>

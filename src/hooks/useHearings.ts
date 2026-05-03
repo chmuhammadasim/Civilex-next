@@ -360,8 +360,86 @@ export function useHearings(caseId: string) {
     }
   };
 
+  const rescheduleHearing = async (
+    hearingId: string,
+    newDate: string,
+    reason: string
+  ) => {
+    if (!user) return { error: "Not authenticated" };
+
+    try {
+      const supabase = createClient();
+
+      // Mark current hearing as adjourned and record the reason
+      const { error: adjournErr } = await supabase
+        .from("hearings")
+        .update({
+          status: "adjourned",
+          notes: reason,
+          next_hearing_date: newDate,
+        })
+        .eq("id", hearingId);
+
+      if (adjournErr) return { error: adjournErr.message };
+
+      // Update the case next_hearing_date
+      await supabase
+        .from("cases")
+        .update({ next_hearing_date: newDate })
+        .eq("id", caseId);
+
+      // Log activity
+      await supabase.from("case_activity_log").insert({
+        case_id: caseId,
+        actor_id: user.id,
+        action: "hearing_rescheduled",
+        details: { hearing_id: hearingId, new_date: newDate, reason },
+      });
+
+      // Notify all parties
+      const { data: caseRow } = await supabase
+        .from("cases")
+        .select("plaintiff_id, defendant_id, title")
+        .eq("id", caseId)
+        .single();
+
+      const partyIds: string[] = [];
+      if (caseRow?.plaintiff_id) partyIds.push(caseRow.plaintiff_id);
+      if (caseRow?.defendant_id) partyIds.push(caseRow.defendant_id);
+
+      const { data: assignments } = await supabase
+        .from("case_assignments")
+        .select("lawyer_id")
+        .eq("case_id", caseId)
+        .eq("status", "accepted");
+
+      if (assignments) {
+        for (const a of assignments) {
+          if (!partyIds.includes(a.lawyer_id)) partyIds.push(a.lawyer_id);
+        }
+      }
+
+      for (const pid of partyIds) {
+        if (pid === user.id) continue;
+        await supabase.from("notifications").insert({
+          user_id: pid,
+          title: "Hearing Adjourned / Rescheduled",
+          message: `A hearing for case "${caseRow?.title}" has been adjourned. New date: ${new Date(newDate).toLocaleDateString("en-PK")}. Reason: ${reason}`,
+          type: "hearing_scheduled",
+          reference_type: "case",
+          reference_id: caseId,
+        });
+      }
+
+      await fetchHearings();
+      return { error: null };
+    } catch (err) {
+      console.error("Error rescheduling hearing:", err);
+      return { error: "Failed to reschedule hearing" };
+    }
+  };
+
   const addOrderSheet = async (data: {
-    hearing_id?: string;
     order_type: OrderType;
     order_text: string;
   }) => {
@@ -408,6 +486,7 @@ export function useHearings(caseId: string) {
     assignStenographer,
     createHearing,
     updateHearing,
+    rescheduleHearing,
     addProceedings,
     addJudgeRemarks,
     addOrderSheet,
