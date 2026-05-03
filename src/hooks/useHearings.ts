@@ -442,6 +442,7 @@ export function useHearings(caseId: string) {
   const addOrderSheet = async (data: {
     order_type: OrderType;
     order_text: string;
+    hearing_id?: string;
   }) => {
     if (!user) return { error: "Not authenticated", data: null };
 
