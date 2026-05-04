@@ -29,6 +29,22 @@ export default function CasesPage() {
     fetchCases();
   }, [fetchCases]);
 
+  // Auto-link defendant cases on mount so cases filed against this client appear
+  useEffect(() => {
+    if (!user || user.role !== "client") return;
+
+    fetch("/api/cases/link-defendant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.linked > 0) fetchCases();
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   const searchLower = search.toLowerCase();
   const filtered = cases.filter(
     (c) =>

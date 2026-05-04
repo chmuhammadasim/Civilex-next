@@ -117,6 +117,27 @@ export default function DashboardPage() {
     }
   };
 
+  // Auto-link defendant cases by email on mount (runs once when user is a client).
+  // The link-defendant API uses the admin client so it can find cases where
+  // defendant_email matches but defendant_id is still NULL (pre-link state).
+  // After linking, re-fetch cases so the dashboard shows the linked cases.
+  useEffect(() => {
+    if (!user || role !== "client") return;
+
+    fetch("/api/cases/link-defendant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.linked > 0) {
+          fetchCases();
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, role]);
+
   // Auto-sync payment status for stuck cases on mount
   useEffect(() => {
     if (!user || role !== "client" || casesLoading || paymentsLoading) return;

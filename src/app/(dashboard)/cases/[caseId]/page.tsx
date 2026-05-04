@@ -78,7 +78,7 @@ export default function CaseDetailPage({
   const { user } = useAuth();
   const router = useRouter();
   const { caseData, documents, isLoading, refreshCase } = useCase(caseId);
-  const { submitToAdmin, startDrafting, issueSummon, updateCaseStatus, submitChallan, uploadDocument, deleteDocument, getDocumentUrl, withdrawCase } = useCases();
+  const { submitToAdmin, startDrafting, issueSummon, updateCaseStatus, submitChallan, uploadDocument, deleteDocument, getDocumentUrl, withdrawCase, acknowledgeSummon } = useCases();
   const { requests: docRequests, createRequest: createDocRequest, fulfillRequest: fulfillDocRequest } = useDocumentRequests(caseId);
   const { hearings, assignJudge, assignStenographer, rescheduleHearing } = useHearings(caseId);
   const { issues } = useCaseIssues(caseId);
@@ -98,6 +98,10 @@ export default function CaseDetailPage({
   const [assignStenoLoading, setAssignStenoLoading] = useState(false);
   const [assignStenoError, setAssignStenoError] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
+  // true while we're attempting to auto-link this user as defendant
+  const [isLinkingDefendant, setIsLinkingDefendant] = useState(false);
+  // set to true once the auto-link attempt has finished (so we don't retry forever)
+  const [linkAttempted, setLinkAttempted] = useState(false);
   const [actionError, setActionError] = useState("");
   const [showSummonDialog, setShowSummonDialog] = useState(false);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
@@ -120,6 +124,33 @@ export default function CaseDetailPage({
   const [withdrawError, setWithdrawError] = useState("");
   const [isSyncingPayment, setIsSyncingPayment] = useState(false);
   const [casePayments, setCasePayments] = useState<any[]>([]);
+
+  // When a client lands on this page and the case isn't found, try to auto-link
+  // them as defendant (their email might match but defendant_id is still NULL).
+  // Runs once, after loading finishes, only when caseData is null.
+  useEffect(() => {
+    if (isLoading) return;
+    if (caseData) return;
+    if (user?.role !== "client") return;
+    if (linkAttempted) return;
+
+    setIsLinkingDefendant(true);
+    fetch("/api/cases/link-defendant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.linked > 0) {
+          refreshCase();
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLinkingDefendant(false);
+        setLinkAttempted(true);
+      });
+  }, [isLoading, caseData, user?.role, linkAttempted, refreshCase]);
 
   // Fetch payments directly for this case to avoid RLS/hook issues
   useEffect(() => {
@@ -204,6 +235,19 @@ export default function CaseDetailPage({
   }
 
   if (!caseData) {
+    // Show spinner while we're trying to auto-link this user as defendant
+    if (isLinkingDefendant) {
+      return (
+        <div>
+          <Topbar title="Case Details" />
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <Spinner size="lg" />
+            <p className="text-sm text-muted">Linking your account to this case…</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
         <Topbar title="Case Details" />
@@ -227,6 +271,7 @@ export default function CaseDetailPage({
   }
 
   const isLawyer = user?.role === "lawyer";
+  const isDefendant = user?.role === "client" && user?.id === caseData.defendant_id;
   const isCourtOfficial = user && ["admin_court", "trial_judge", "stenographer"].includes(user.role);
   const status = caseData.status as CaseStatus;
 
@@ -393,6 +438,97 @@ export default function CaseDetailPage({
               >
                 {isSyncingPayment ? "Updating..." : "Update Status"}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Defendant: Summon Acknowledgment Banner */}
+        {isDefendant && status === "summon_issued" && (
+          <div className="mt-2 rounded-xl border-2 border-warning bg-amber-50 p-5 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning/20">
+                <Gavel className="h-6 w-6 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-amber-900">
+                  A Court Case Has Been Filed Against You
+                </h3>
+                <p className="mt-1 text-sm text-amber-800">
+                  You have been officially summoned to appear in this case. Please review the details below and acknowledge receipt of the summon to proceed.
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-3 rounded-lg border border-amber-200 bg-white p-4 text-sm sm:grid-cols-2">
+                  <div>
+                    <span className="font-medium text-amber-900">Case Number:</span>{" "}
+                    <span className="text-foreground">{caseData.case_number}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-amber-900">Case Type:</span>{" "}
+                    <span className="capitalize text-foreground">{caseData.case_type}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-amber-900">Plaintiff:</span>{" "}
+                    <span className="text-foreground">{caseData.plaintiff?.full_name ?? "—"}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-amber-900">Filed On:</span>{" "}
+                    <span className="text-foreground">{caseData.filing_date ? formatDate(caseData.filing_date) : "—"}</span>
+                  </div>
+                  {caseData.relief_sought && (
+                    <div className="sm:col-span-2">
+                      <span className="font-medium text-amber-900">Relief Sought:</span>{" "}
+                      <span className="text-foreground">{caseData.relief_sought}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-3 text-sm text-amber-800">
+                  <strong>Your next steps:</strong> Acknowledge the summon, hire a lawyer to represent you, and submit your written statement within the prescribed time.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    variant="warning"
+                    isLoading={isActionLoading}
+                    onClick={() =>
+                      handleAction(() => acknowledgeSummon(caseId))
+                    }
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Acknowledge Summon &amp; Proceed
+                  </Button>
+                  <Link href="/lawyers">
+                    <Button variant="outline">
+                      <Users className="h-4 w-4" />
+                      Hire a Lawyer
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Defendant: post-acknowledgment — case is now in preliminary hearing, show guidance */}
+        {isDefendant && status === "preliminary_hearing" && !caseData.assignments?.some((a) => a.side === "defendant" && a.status !== "declined") && (
+          <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-primary">Action Required: Hire a Lawyer</h3>
+                <p className="mt-1 text-sm text-muted">
+                  The case has moved to the Preliminary Hearing stage. You should hire a lawyer to represent you and submit your written statement.
+                </p>
+                <div className="mt-3 flex gap-3">
+                  <Link href="/lawyers">
+                    <Button size="sm" variant="primary">
+                      <Users className="h-4 w-4" />
+                      Browse &amp; Hire a Lawyer
+                    </Button>
+                  </Link>
+                  <Button size="sm" variant="outline" onClick={() => setActiveTab("written_statement")}>
+                    <FileText className="h-4 w-4" />
+                    View Written Statement
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -834,6 +970,19 @@ export default function CaseDetailPage({
               >
                 <Scale className="h-4 w-4" />
                 File Appeal
+              </Button>
+            )}
+
+            {/* Defendant: Acknowledge summon */}
+            {isDefendant && status === "summon_issued" && (
+              <Button
+                size="sm"
+                variant="warning"
+                isLoading={isActionLoading}
+                onClick={() => handleAction(() => acknowledgeSummon(caseId))}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Acknowledge Summon
               </Button>
             )}
 

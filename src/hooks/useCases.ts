@@ -1076,6 +1076,85 @@ export function useCases() {
     }
   };
 
+  /**
+   * Defendant acknowledges the court summon, confirming they have received it
+   * and are ready to proceed. Transitions case from summon_issued → preliminary_hearing
+   * and notifies admin court + plaintiff.
+   */
+  const acknowledgeSummon = async (caseId: string) => {
+    if (!user) return { error: "Not authenticated" };
+
+    try {
+      const supabase = createClient();
+
+      // Verify the case exists, is in summon_issued, and this user IS the defendant
+      const { data: caseRow, error: caseError } = await supabase
+        .from("cases")
+        .select("id, title, case_number, defendant_id, plaintiff_id")
+        .eq("id", caseId)
+        .eq("defendant_id", user.id)
+        .eq("status", "summon_issued")
+        .maybeSingle();
+
+      if (caseError) return { error: caseError.message };
+      if (!caseRow) return { error: "Cannot acknowledge at this time. The summon may not have been issued yet, or you are not the defendant." };
+
+      // Transition case status to preliminary_hearing
+      const { error: updateError } = await supabase
+        .from("cases")
+        .update({ status: "preliminary_hearing" })
+        .eq("id", caseId)
+        .eq("status", "summon_issued");
+
+      if (updateError) return { error: updateError.message };
+
+      // Log activity
+      await supabase.from("case_activity_log").insert({
+        case_id: caseId,
+        actor_id: user.id,
+        action: "summon_acknowledged",
+        details: {},
+      });
+
+      // Notify admin court
+      const { data: adminUsers } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin_court");
+
+      if (adminUsers) {
+        for (const admin of adminUsers) {
+          await supabase.from("notifications").insert({
+            user_id: admin.id,
+            title: "Defendant Acknowledged Summon",
+            message: `Defendant has acknowledged the summon for case "${caseRow.title}" (${caseRow.case_number}). Preliminary hearing can now be scheduled.`,
+            type: "case_status_changed",
+            reference_type: "case",
+            reference_id: caseId,
+          });
+        }
+      }
+
+      // Notify plaintiff
+      if (caseRow.plaintiff_id) {
+        await supabase.from("notifications").insert({
+          user_id: caseRow.plaintiff_id,
+          title: "Defendant Has Responded",
+          message: `The defendant has acknowledged the summon for case "${caseRow.title}". The case will now proceed to preliminary hearing.`,
+          type: "case_status_changed",
+          reference_type: "case",
+          reference_id: caseId,
+        });
+      }
+
+      await fetchCases();
+      return { error: null };
+    } catch (err) {
+      console.error("Error acknowledging summon:", err);
+      return { error: "Failed to acknowledge summon" };
+    }
+  };
+
   return {
     cases,
     isLoading,
@@ -1088,6 +1167,7 @@ export function useCases() {
     declineCase,
     withdrawCase,
     requestDefendantLawyer,
+    acknowledgeSummon,
     submitToAdmin,
     startDrafting,
     issueSummon,

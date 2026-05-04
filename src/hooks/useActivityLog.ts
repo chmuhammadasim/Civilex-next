@@ -45,6 +45,7 @@ const ACTION_LABELS: Record<string, string> = {
   case_disposed: "Case Disposed",
   criminal_details_updated: "Criminal Details Updated",
   defendant_lawyer_requested: "Defendant Requested Lawyer",
+  summon_acknowledged: "Defendant Acknowledged Summon",
 };
 
 export function getActionLabel(action: string): string {
