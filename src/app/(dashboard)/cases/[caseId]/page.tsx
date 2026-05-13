@@ -296,36 +296,50 @@ export default function CaseDetailPage({
   const isMagistrate = false;
   const isTrialJudge = user?.role === "trial_judge";
   const isStenographer = user?.role === "stenographer";
+  const isAdminCourt = user?.role === "admin_court";
   const criminalDetails = caseData.criminal_details as CriminalCaseDetailsExtended | null;
 
+  // Admin Court's jurisdiction ends once the case is transferred to trial.
+  // After that point they can view the case but should not take any actions
+  // or see judge/steno-specific tabs.
+  const adminCourtActiveStatuses = [
+    "submitted_to_admin", "under_scrutiny", "returned_for_revision",
+    "registered", "summon_issued", "preliminary_hearing", "issues_framed",
+  ];
+  const isAdminCourtActive = isAdminCourt && adminCourtActiveStatuses.includes(status);
+
   // Show trial court tabs (evidence, witnesses, judgment) when case is in trial phase or post-judgment
+  // Admin Court does NOT see these tabs — they belong to the Judge/Steno workflow.
   const showTrialTabs = [
     "transferred_to_trial", "evidence_stage", "arguments",
     "reserved_for_judgment", "judgment_delivered",
     "remanded", "under_execution", "satisfied", "appeal_filed",
     "closed",
-  ].includes(status);
+  ].includes(status) && !isAdminCourt;
 
-  // Show issues tab once the case reaches preliminary hearing. Stays visible
-  // through trial and judgment so findings can be recorded and read.
-  const showIssuesTab = [
-    "preliminary_hearing", "issues_framed", "transferred_to_trial",
-    "evidence_stage", "arguments", "reserved_for_judgment",
-    "judgment_delivered", "under_execution", "satisfied",
-    "appeal_filed", "remanded", "closed", "disposed",
-  ].includes(status);
+  // Show issues tab once the case reaches preliminary hearing.
+  // For Admin Court, only show during pre-transfer statuses.
+  const showIssuesTab = isAdminCourt
+    ? ["preliminary_hearing", "issues_framed"].includes(status)
+    : [
+        "preliminary_hearing", "issues_framed", "transferred_to_trial",
+        "evidence_stage", "arguments", "reserved_for_judgment",
+        "judgment_delivered", "under_execution", "satisfied",
+        "appeal_filed", "remanded", "closed", "disposed",
+      ].includes(status);
 
-  const showDecreeTab = [
+  const showDecreeTab = !isAdminCourt && [
     "judgment_delivered", "under_execution", "satisfied",
     "appeal_filed", "closed", "disposed",
   ].includes(status);
 
-  const showAppealTab = [
+  const showAppealTab = !isAdminCourt && [
     "judgment_delivered", "under_execution", "satisfied",
     "appeal_filed", "closed", "disposed",
   ].includes(status);
 
   const showExecutionTab =
+    !isAdminCourt &&
     !!decree && ["signed", "executed", "pending_execution", "satisfied"].includes(decree.status);
 
   // Show written statement tab once summon is issued (defendant has been notified)
@@ -357,8 +371,8 @@ export default function CaseDetailPage({
     ...(showTrialTabs ? [{ id: "witnesses" as Tab, label: "Witnesses" }] : []),
     ...(showTrialTabs ? [{ id: "judgment" as Tab, label: "Judgment" }] : []),
     ...(showDecreeTab ? [{ id: "decree" as Tab, label: "Decree" }] : []),
-    // Appeals tab: hidden for stenographer
-    ...(!isStenographer && showAppealTab ? [{ id: "appeals" as Tab, label: "Appeals" }] : []),
+    // Appeals tab: hidden for stenographer and admin_court
+    ...(!isStenographer && !isAdminCourt && showAppealTab ? [{ id: "appeals" as Tab, label: "Appeals" }] : []),
     ...(showExecutionTab ? [{ id: "execution" as Tab, label: "Execution" }] : []),
     // Written Statement tab: hidden for stenographer and trial_judge
     ...(showWrittenStatementTab && !isStenographer && !isTrialJudge ? [{ id: "written_statement" as Tab, label: "Written Statement" }] : []),
@@ -626,7 +640,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Admin Court: Begin Scrutiny */}
-            {isCourtOfficial && status === "submitted_to_admin" && (
+            {isAdminCourtActive && status === "submitted_to_admin" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -638,7 +652,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Admin Court: Issue Summon */}
-            {isCourtOfficial && status === "registered" && (
+            {isAdminCourtActive && status === "registered" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -649,8 +663,8 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Admin Court: Assign Judge */}
-            {isCourtOfficial && ["registered", "summon_issued", "preliminary_hearing", "issues_framed"].includes(status) && (
+            {/* Admin Court: Assign Judge (only within admin court active statuses) */}
+            {isAdminCourtActive && ["registered", "summon_issued", "preliminary_hearing", "issues_framed"].includes(status) && (
               <Button
                 size="sm"
                 variant={caseData.trial_judge_id ? "outline" : "warning"}
@@ -672,8 +686,12 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Admin Court / Trial Judge: Assign Stenographer */}
-            {isCourtOfficial && ["registered", "summon_issued", "preliminary_hearing", "issues_framed", "transferred_to_trial", "evidence_stage", "arguments"].includes(status) && (
+            {/* Trial Judge / Stenographer: Assign Stenographer (post-transfer)
+                Admin Court: only during their active pre-transfer statuses */}
+            {(
+              (!isAdminCourt && isCourtOfficial && ["transferred_to_trial", "evidence_stage", "arguments"].includes(status)) ||
+              (isAdminCourtActive && ["registered", "summon_issued", "preliminary_hearing", "issues_framed"].includes(status))
+            ) && (
               <Button
                 size="sm"
                 variant={caseData.stenographer_id ? "outline" : "warning"}
@@ -696,7 +714,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Admin Court: Advance through statuses */}
-            {isCourtOfficial && status === "summon_issued" && (
+            {isAdminCourtActive && status === "summon_issued" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -710,7 +728,7 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {isCourtOfficial && status === "preliminary_hearing" && (
+            {isAdminCourtActive && status === "preliminary_hearing" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -741,8 +759,8 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Admin Court / Magistrate: Dispose at preliminary hearing stage */}
-            {isCourtOfficial && status === "preliminary_hearing" && (
+            {/* Admin Court: Dispose at preliminary hearing stage */}
+            {isAdminCourtActive && status === "preliminary_hearing" && (
               <Button
                 size="sm"
                 variant="danger"
@@ -756,7 +774,7 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {isCourtOfficial && status === "issues_framed" && (
+            {isAdminCourtActive && status === "issues_framed" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -770,8 +788,8 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Criminal: Submit Challan */}
-            {isCriminalCase && isCourtOfficial && criminalDetails && !criminalDetails.challan_submitted && (
+            {/* Criminal: Submit Challan (only while admin court is active, or by judge/steno) */}
+            {isCriminalCase && isCourtOfficial && !isAdminCourt && criminalDetails && !criminalDetails.challan_submitted && (
               <Button
                 size="sm"
                 variant="warning"
@@ -853,7 +871,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Trial Court: Close Case */}
-            {isCourtOfficial && status === "judgment_delivered" && (
+            {isCourtOfficial && !isAdminCourt && status === "judgment_delivered" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -867,7 +885,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Court Official / Trial Judge: Start decree execution */}
-            {isCourtOfficial && status === "judgment_delivered" && (
+            {isCourtOfficial && !isAdminCourt && status === "judgment_delivered" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -882,7 +900,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Court Official / Trial Judge: Mark decree satisfied */}
-            {isCourtOfficial && status === "under_execution" && (
+            {isCourtOfficial && !isAdminCourt && status === "under_execution" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -896,8 +914,8 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Trial Judge / Admin: Remand case for retrial */}
-            {isCourtOfficial && status === "judgment_delivered" && (
+            {/* Trial Judge: Remand case for retrial */}
+            {isCourtOfficial && !isAdminCourt && status === "judgment_delivered" && (
               <Button
                 size="sm"
                 variant="warning"
@@ -912,7 +930,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Court Official: Re-start trial after remand */}
-            {isCourtOfficial && status === "remanded" && (
+            {isCourtOfficial && !isAdminCourt && status === "remanded" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -926,10 +944,14 @@ export default function CaseDetailPage({
               </Button>
             )}
 
-            {/* Court Official: Stay case proceedings */}
+            {/* Court Official: Stay case proceedings
+                Admin Court: only pre-transfer statuses; Judge/Steno: also post-transfer */}
             {isCourtOfficial &&
-              ["registered", "summon_issued", "preliminary_hearing", "issues_framed",
-               "transferred_to_trial", "evidence_stage", "arguments"].includes(status) && (
+              (isAdminCourt
+                ? ["registered", "summon_issued", "preliminary_hearing", "issues_framed"].includes(status)
+                : ["registered", "summon_issued", "preliminary_hearing", "issues_framed",
+                   "transferred_to_trial", "evidence_stage", "arguments"].includes(status)
+              ) && (
               <Button
                 size="sm"
                 variant="warning"
@@ -944,7 +966,7 @@ export default function CaseDetailPage({
             )}
 
             {/* Court Official: Lift stay — resume at registered */}
-            {isCourtOfficial && status === "stayed" && (
+            {isCourtOfficial && !isAdminCourt && status === "stayed" && (
               <Button
                 size="sm"
                 variant="primary"
@@ -1661,7 +1683,7 @@ export default function CaseDetailPage({
           {activeTab === "evidence" && showTrialTabs && (
             <EvidencePanel
               caseId={caseData.id}
-              isJudge={isTrialJudge || isMagistrate || user?.role === "admin_court"}
+              isJudge={isTrialJudge || isMagistrate}
               isLawyer={isLawyer}
             />
           )}
@@ -1669,7 +1691,7 @@ export default function CaseDetailPage({
           {activeTab === "witnesses" && showTrialTabs && (
             <WitnessPanel
               caseId={caseData.id}
-              isJudge={isTrialJudge || isMagistrate || user?.role === "admin_court"}
+              isJudge={isTrialJudge || isMagistrate}
               isLawyer={isLawyer}
               isStenographer={isStenographer}
             />
@@ -1678,7 +1700,7 @@ export default function CaseDetailPage({
           {activeTab === "judgment" && showTrialTabs && (
             <JudgmentPanel
               caseId={caseData.id}
-              isJudge={isTrialJudge || isMagistrate || user?.role === "admin_court"}
+              isJudge={isTrialJudge || isMagistrate}
               caseStatus={status}
               onRefresh={refreshCase}
             />
@@ -1766,8 +1788,8 @@ export default function CaseDetailPage({
             <IssueFraming
               caseId={caseData.id}
               caseStatus={status}
-              canFrame={!!isCourtOfficial}
-              canDecide={!!(isTrialJudge || isMagistrate || user?.role === "admin_court")}
+              canFrame={isAdminCourt ? isAdminCourtActive : !!isCourtOfficial}
+              canDecide={!!(isTrialJudge || isMagistrate)}
             />
           )}
 

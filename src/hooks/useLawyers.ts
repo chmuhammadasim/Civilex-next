@@ -47,11 +47,6 @@ export function useLawyers() {
         query = query.ilike("full_name", `%${filters.search}%`);
       }
 
-      // Apply city filter — search both profiles.city and lawyer_profiles.location
-      if (filters.city) {
-        query = query.or(`city.ilike.%${filters.city}%,lawyer_profiles.location.ilike.%${filters.city}%`);
-      }
-
       const { data, error } = await query;
 
       if (error) {
@@ -60,9 +55,18 @@ export function useLawyers() {
         return;
       }
 
-      // Post-process for specialization and rating filters
+      // Post-process for specialization, city, and rating filters
       // (Supabase doesn't easily filter on nested/array fields via REST)
       let filtered = (data as unknown as LawyerWithProfile[]) || [];
+
+      if (filters.city) {
+        const searchCity = filters.city.toLowerCase();
+        filtered = filtered.filter((l) => {
+          const profileCity = (l.city || "").toLowerCase();
+          const lawyerLocation = (l.lawyer_profiles.location || "").toLowerCase();
+          return profileCity.includes(searchCity) || lawyerLocation.includes(searchCity);
+        });
+      }
 
       if (filters.specialization) {
         filtered = filtered.filter((l) =>

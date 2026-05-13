@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import Spinner from "@/components/ui/Spinner";
+import LawChatbot from "@/components/features/ai/LawChatbot";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function DashboardLayout({
@@ -56,6 +57,9 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/* Law Chatbot — available to all roles */}
+      <LawChatbot />
     </div>
   );
 }

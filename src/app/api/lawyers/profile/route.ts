@@ -37,9 +37,6 @@ export async function POST(request: NextRequest) {
 
     const adminClient = createAdminClient();
 
-    // If session cookie isn't set (can happen right after signup),
-    // verify the user_id exists as a lawyer in profiles as fallback.
-    // The duplicate check below prevents creating extra profiles.
     if (!authenticatedUserId) {
       // Profile may not exist yet if the DB trigger hasn't fired;
       // retry a few times with a short delay

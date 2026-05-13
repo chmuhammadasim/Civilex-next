@@ -4,28 +4,14 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
-import Textarea from "@/components/ui/Textarea";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { registerSchema } from "@/lib/validations/auth";
-import { ROLE_LABELS, type Role } from "@/lib/constants";
+import { type Role } from "@/lib/constants";
 import { Eye, EyeOff } from "lucide-react";
 
-const roleOptions = Object.entries(ROLE_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const specializationOptions = [
-  { value: "civil", label: "Civil Law" },
-  { value: "criminal", label: "Criminal Law" },
-  { value: "family", label: "Family Law" },
-  { value: "property", label: "Property Law" },
-  { value: "corporate", label: "Corporate Law" },
-  { value: "tax", label: "Tax Law" },
-  { value: "constitutional", label: "Constitutional Law" },
-];
+// Only clients may self-register. Lawyer, Admin Court, Judge and Stano
+// accounts are created by Admin only.
 
 export default function RegisterPage() {
   return (
@@ -39,29 +25,20 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "";
-  const prefilledRole = searchParams.get("role") || "";
-  const { signUp, createLawyerProfile } = useAuth();
+  const { signUp } = useAuth();
   const [formData, setFormData] = useState({
-    role: prefilledRole,
+    role: "client" as Role,
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
     phone: "",
     cnic: "",
-    // Lawyer fields
-    barLicenseNumber: "",
-    specialization: [] as string[],
-    experienceYears: "",
-    bio: "",
-    location: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const isLawyer = formData.role === "lawyer";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,9 +46,6 @@ function RegisterForm() {
 
     const validationData = {
       ...formData,
-      experienceYears: formData.experienceYears
-        ? parseInt(formData.experienceYears)
-        : undefined,
     };
 
     if (formData.password !== formData.confirmPassword) {
@@ -89,14 +63,9 @@ function RegisterForm() {
       return;
     }
 
-    if (isLawyer && !formData.barLicenseNumber) {
-      setErrors({ barLicenseNumber: "Bar license number is required for lawyers" });
-      return;
-    }
-
     setIsLoading(true);
 
-    const { error: signUpError, userId } = await signUp(formData.email, formData.password, {
+    const { error: signUpError } = await signUp(formData.email, formData.password, {
       full_name: formData.fullName,
       role: formData.role,
     });
@@ -105,31 +74,6 @@ function RegisterForm() {
       setErrors({ form: signUpError });
       setIsLoading(false);
       return;
-    }
-
-    // If lawyer, create lawyer profile
-    // Pass userId so it works even when email confirmation is pending
-    if (isLawyer && userId) {
-      const { error: lawyerError } = await createLawyerProfile(
-        {
-          bar_license_number: formData.barLicenseNumber,
-          specialization: formData.specialization,
-          experience_years: formData.experienceYears
-            ? parseInt(formData.experienceYears)
-            : 0,
-          bio: formData.bio || null,
-          hourly_rate: null,
-          is_available: true,
-          location: formData.location || null,
-        },
-        userId
-      );
-
-      if (lawyerError) {
-        setErrors({ form: lawyerError });
-        setIsLoading(false);
-        return;
-      }
     }
 
     router.push(returnUrl ? `/login?registered=true&returnUrl=${encodeURIComponent(returnUrl)}` : "/login?registered=true");
@@ -151,18 +95,6 @@ function RegisterForm() {
       )}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        <Select
-          id="role"
-          label="Role"
-          placeholder="Choose Role"
-          options={roleOptions}
-          value={formData.role}
-          error={errors.role}
-          onChange={(e) =>
-            setFormData({ ...formData, role: e.target.value as Role })
-          }
-        />
-
         <Input
           id="fullName"
           type="text"
@@ -230,91 +162,6 @@ function RegisterForm() {
             {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-
-        {/* Lawyer-specific fields */}
-        {isLawyer && (
-          <div className="space-y-5 rounded-lg border border-border bg-cream p-4">
-            <h3 className="text-sm font-semibold text-primary">
-              Lawyer Details
-            </h3>
-
-            <Input
-              id="barLicenseNumber"
-              label="Bar License Number"
-              placeholder="Enter Bar License Number"
-              value={formData.barLicenseNumber}
-              error={errors.barLicenseNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, barLicenseNumber: e.target.value })
-              }
-            />
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-primary">
-                Specialization
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {specializationOptions.map((spec) => (
-                  <label
-                    key={spec.value}
-                    className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                      formData.specialization.includes(spec.value)
-                        ? "border-primary bg-primary text-white"
-                        : "border-border bg-cream-light text-foreground hover:border-primary"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="hidden"
-                      checked={formData.specialization.includes(spec.value)}
-                      onChange={(e) => {
-                        const updated = e.target.checked
-                          ? [...formData.specialization, spec.value]
-                          : formData.specialization.filter(
-                              (s) => s !== spec.value
-                            );
-                        setFormData({ ...formData, specialization: updated });
-                      }}
-                    />
-                    {spec.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                id="experienceYears"
-                type="number"
-                label="Years of Experience"
-                placeholder="e.g. 5"
-                value={formData.experienceYears}
-                onChange={(e) =>
-                  setFormData({ ...formData, experienceYears: e.target.value })
-                }
-              />
-              <Input
-                id="location"
-                label="Location / City"
-                placeholder="e.g. Lahore"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-              />
-            </div>
-
-            <Textarea
-              id="bio"
-              label="Bio"
-              placeholder="Brief description about your practice..."
-              value={formData.bio}
-              onChange={(e) =>
-                setFormData({ ...formData, bio: e.target.value })
-              }
-            />
-          </div>
-        )}
 
         <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
           Register
