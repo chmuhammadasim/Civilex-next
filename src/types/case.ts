@@ -56,6 +56,7 @@ export interface CaseWithRelations extends Case {
   stenographer?: { id: string; full_name: string; email: string } | null;
   assignments?: CaseAssignment[];
   criminal_details?: CriminalCaseDetails | null;
+  land_details?: LandCaseDetails | null;
 }
 
 export interface CriminalCaseDetails {
@@ -70,6 +71,36 @@ export interface CriminalCaseDetails {
   bail_status: "not_applicable" | "applied" | "granted" | "denied" | "cancelled";
   arrest_date: string | null;
   evidence_type: "oral" | "documentary" | null;
+  created_at: string;
+}
+
+export interface LandCaseDetails {
+  id: string;
+  case_id: string;
+  /** Plot / survey number in revenue records (Khasra No.) */
+  khasra_number: string;
+  /** Ownership record number (Khewat / Khatauni) */
+  khewat_number: string | null;
+  /** District where the land is located */
+  district: string;
+  /** Sub-district / Tehsil */
+  tehsil: string;
+  /** Village / locality (Mauza) */
+  mauza: string;
+  /** Human-readable area, e.g. "2 Kanals 5 Marlas" */
+  total_area: string | null;
+  /** Type of land */
+  land_type: "agricultural" | "residential" | "commercial" | null;
+  /** Mutation number (for mutation / inheritance cases) */
+  mutation_number: string | null;
+  /** Patwari or Revenue Officer name */
+  revenue_officer: string | null;
+  /** Registration authority (for transfer cases) */
+  registration_authority: string | null;
+  /** Deed / document number (for sale/gift deed cases) */
+  deed_number: string | null;
+  /** Date the deed was executed */
+  deed_date: string | null;
   created_at: string;
 }
 
@@ -108,6 +139,10 @@ export type DocumentType =
   | "fir_copy"
   | "power_of_attorney"
   | "vakalatnama"
+  | "registry_deed"
+  | "fard_malkiyat"
+  | "mutation_record"
+  | "khasra_girdawari"
   | "other";
 
 export interface CaseDocument {

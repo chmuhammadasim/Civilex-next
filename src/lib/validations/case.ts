@@ -119,6 +119,89 @@ export const criminalCaseSchema = z.object({
   }),
 });
 
+// ── Land case shared fields ────────────────────────────────────────────
+
+const landBaseFields = {
+  khasra_number: z.string().min(1, "Khasra number is required"),
+  khewat_number: z.string().optional(),
+  district: z.string().min(1, "District is required"),
+  tehsil: z.string().min(1, "Tehsil is required"),
+  mauza: z.string().min(1, "Mauza (village/locality) is required"),
+  total_area: z.string().optional(),
+  land_type: z.enum(["agricultural", "residential", "commercial"]).optional(),
+  revenue_officer: z.string().optional(),
+};
+
+// ── Land Revenue sub-schemas ──────────────────────────────────────────
+
+export const landRevenueCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_revenue"),
+  case_category: z.literal("land_revenue"),
+  ...landBaseFields,
+});
+
+export const landMutationCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_revenue"),
+  case_category: z.literal("land_mutation"),
+  ...landBaseFields,
+  mutation_number: z.string().min(1, "Mutation number is required for mutation cases"),
+});
+
+export const landPartitionCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_revenue"),
+  case_category: z.literal("land_partition"),
+  ...landBaseFields,
+});
+
+export const landInheritanceCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_revenue"),
+  case_category: z.literal("land_inheritance"),
+  ...landBaseFields,
+});
+
+export const landAcquisitionCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_revenue"),
+  case_category: z.literal("land_acquisition"),
+  ...landBaseFields,
+});
+
+// ── Land Transfer sub-schemas ─────────────────────────────────────────
+
+export const landTransferCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_transfer"),
+  case_category: z.literal("land_transfer"),
+  ...landBaseFields,
+  registration_authority: z.string().optional(),
+  deed_number: z.string().optional(),
+  deed_date: z.string().optional(),
+});
+
+export const landSaleDeedCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_transfer"),
+  case_category: z.literal("land_sale_deed"),
+  ...landBaseFields,
+  registration_authority: z.string().optional(),
+  deed_number: z.string().min(1, "Deed number is required for sale deed cases"),
+  deed_date: z.string().optional(),
+});
+
+export const landGiftDeedCaseSchema = z.object({
+  ...baseCaseFields,
+  case_type: z.literal("land_transfer"),
+  case_category: z.literal("land_gift_deed"),
+  ...landBaseFields,
+  registration_authority: z.string().optional(),
+  deed_number: z.string().min(1, "Deed number is required for gift deed cases"),
+  deed_date: z.string().optional(),
+});
+
 // ── Discriminated union for the full form ─────────────────────────────
 
 export const caseFormSchema = z.discriminatedUnion("case_category", [
@@ -129,6 +212,14 @@ export const caseFormSchema = z.discriminatedUnion("case_category", [
   documentsCaseSchema,
   affidavitsCaseSchema,
   criminalCaseSchema,
+  landRevenueCaseSchema,
+  landMutationCaseSchema,
+  landPartitionCaseSchema,
+  landInheritanceCaseSchema,
+  landAcquisitionCaseSchema,
+  landTransferCaseSchema,
+  landSaleDeedCaseSchema,
+  landGiftDeedCaseSchema,
 ]);
 
 // ── Inferred TypeScript types ──────────────────────────────────────────
@@ -140,4 +231,12 @@ export type FrcCaseFormData = z.infer<typeof frcCaseSchema>;
 export type DocumentsCaseFormData = z.infer<typeof documentsCaseSchema>;
 export type AffidavitsCaseFormData = z.infer<typeof affidavitsCaseSchema>;
 export type CriminalCaseFormData = z.infer<typeof criminalCaseSchema>;
+export type LandRevenueCaseFormData = z.infer<typeof landRevenueCaseSchema>;
+export type LandMutationCaseFormData = z.infer<typeof landMutationCaseSchema>;
+export type LandPartitionCaseFormData = z.infer<typeof landPartitionCaseSchema>;
+export type LandInheritanceCaseFormData = z.infer<typeof landInheritanceCaseSchema>;
+export type LandAcquisitionCaseFormData = z.infer<typeof landAcquisitionCaseSchema>;
+export type LandTransferCaseFormData = z.infer<typeof landTransferCaseSchema>;
+export type LandSaleDeedCaseFormData = z.infer<typeof landSaleDeedCaseSchema>;
+export type LandGiftDeedCaseFormData = z.infer<typeof landGiftDeedCaseSchema>;
 export type CaseFormData = z.infer<typeof caseFormSchema>;

@@ -1,13 +1,14 @@
 import { cn } from "@/lib/utils";
-import { forwardRef, InputHTMLAttributes } from "react";
+import { forwardRef, InputHTMLAttributes, ReactNode } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  leftIcon?: ReactNode;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, id, ...props }, ref) => {
+  ({ className, label, error, id, leftIcon, ...props }, ref) => {
     return (
       <div className="w-full">
         {label && (
@@ -18,16 +19,24 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <input
-          ref={ref}
-          id={id}
-          className={cn(
-            "w-full rounded-lg border bg-cream-light px-4 py-2.5 text-sm text-foreground placeholder:text-muted transition-colors focus-ring",
-            error ? "border-danger" : "border-border",
-            className
+        <div className="relative">
+          {leftIcon && (
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+              {leftIcon}
+            </span>
           )}
-          {...props}
-        />
+          <input
+            ref={ref}
+            id={id}
+            className={cn(
+              "w-full rounded-lg border bg-cream-light px-4 py-2.5 text-sm text-foreground placeholder:text-muted transition-colors focus-ring",
+              leftIcon && "pl-9",
+              error ? "border-danger" : "border-border",
+              className
+            )}
+            {...props}
+          />
+        </div>
         {error && <p className="mt-1 text-xs text-danger">{error}</p>}
       </div>
     );

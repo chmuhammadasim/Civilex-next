@@ -22,15 +22,19 @@ export const CASE_TYPES = {
   CIVIL: "civil",
   CRIMINAL: "criminal",
   FAMILY: "family",
+  LAND_REVENUE: "land_revenue",
+  LAND_TRANSFER: "land_transfer",
 } as const;
 
 export type CaseType = (typeof CASE_TYPES)[keyof typeof CASE_TYPES];
 
 /**
  * Case categories narrow down the case_type.
- * civil      → "civil"
- * family     → "family" | "marriage_divorce" | "frc" | "documents" | "affidavits"
- * criminal   → "criminal"
+ * civil         → "civil"
+ * family        → "family" | "marriage_divorce" | "frc" | "documents" | "affidavits"
+ * criminal      → "criminal"
+ * land_revenue  → "land_revenue" | "land_mutation" | "land_partition" | "land_inheritance" | "land_acquisition"
+ * land_transfer → "land_transfer" | "land_sale_deed" | "land_gift_deed"
  */
 export const CASE_CATEGORIES = {
   CIVIL: "civil",
@@ -40,6 +44,16 @@ export const CASE_CATEGORIES = {
   FRC: "frc",
   DOCUMENTS: "documents",
   AFFIDAVITS: "affidavits",
+  // Land Revenue sub-categories
+  LAND_REVENUE: "land_revenue",
+  LAND_MUTATION: "land_mutation",
+  LAND_PARTITION: "land_partition",
+  LAND_INHERITANCE: "land_inheritance",
+  LAND_ACQUISITION: "land_acquisition",
+  // Land Transfer sub-categories
+  LAND_TRANSFER: "land_transfer",
+  LAND_SALE_DEED: "land_sale_deed",
+  LAND_GIFT_DEED: "land_gift_deed",
 } as const;
 
 export type CaseCategory = (typeof CASE_CATEGORIES)[keyof typeof CASE_CATEGORIES];
@@ -52,6 +66,16 @@ export const CASE_CATEGORY_LABELS: Record<CaseCategory, string> = {
   frc: "FRC (Family Reconciliation Certificate)",
   documents: "Documents",
   affidavits: "Affidavits",
+  // Land Revenue
+  land_revenue: "Land Revenue (General)",
+  land_mutation: "Land Mutation (Intiqal)",
+  land_partition: "Land Partition (Taqseem)",
+  land_inheritance: "Land Inheritance (Wirasat)",
+  land_acquisition: "Land Acquisition",
+  // Land Transfer
+  land_transfer: "Land Transfer (General)",
+  land_sale_deed: "Sale Deed (Bai Nama)",
+  land_gift_deed: "Gift Deed (Hiba Nama)",
 };
 
 /** Map each category back to its DB case_type */
@@ -63,6 +87,16 @@ export const CATEGORY_TO_CASE_TYPE: Record<CaseCategory, CaseType> = {
   frc: "family",
   documents: "family",
   affidavits: "family",
+  // Land Revenue
+  land_revenue: "land_revenue",
+  land_mutation: "land_revenue",
+  land_partition: "land_revenue",
+  land_inheritance: "land_revenue",
+  land_acquisition: "land_revenue",
+  // Land Transfer
+  land_transfer: "land_transfer",
+  land_sale_deed: "land_transfer",
+  land_gift_deed: "land_transfer",
 };
 
 export const EVIDENCE_TYPES = {
@@ -142,6 +176,8 @@ export const SPECIALIZATIONS = [
   "Criminal",
   "Family",
   "Property",
+  "Land Revenue",
+  "Land Transfer",
   "Corporate",
   "Tax",
   "Constitutional",
@@ -161,6 +197,10 @@ export const DOCUMENT_TYPES = {
   FIR_COPY: "fir_copy",
   POWER_OF_ATTORNEY: "power_of_attorney",
   VAKALATNAMA: "vakalatnama",
+  REGISTRY_DEED: "registry_deed",
+  FARD_MALKIYAT: "fard_malkiyat",
+  MUTATION_RECORD: "mutation_record",
+  KHASRA_GIRDAWARI: "khasra_girdawari",
   OTHER: "other",
 } as const;
 
@@ -176,6 +216,10 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   fir_copy: "FIR Copy",
   power_of_attorney: "Power of Attorney",
   vakalatnama: "Vakalatnama",
+  registry_deed: "Registry / Sale Deed",
+  fard_malkiyat: "Fard Malkiyat (Ownership Record)",
+  mutation_record: "Mutation Record (Intiqal)",
+  khasra_girdawari: "Khasra Girdawari",
   other: "Other",
 };
 
@@ -183,6 +227,8 @@ export const SIDEBAR_NAV = {
   client: [
     { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
     { label: "Cases", href: "/cases", icon: "Briefcase" },
+    { label: "Land Revenue", href: "/cases/land-revenue", icon: "Landmark" },
+    { label: "Land Transfer", href: "/cases/land-transfer", icon: "FileText" },
     { label: "Lawyers", href: "/lawyers", icon: "Users" },
     { label: "Payments", href: "/payments", icon: "CreditCard" },
     { label: "Notifications", href: "/notifications", icon: "Bell" },
@@ -191,6 +237,9 @@ export const SIDEBAR_NAV = {
   lawyer: [
     { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
     { label: "Cases", href: "/cases", icon: "Briefcase" },
+    { label: "Land Revenue", href: "/cases/land-revenue", icon: "Landmark" },
+    { label: "Land Transfer", href: "/cases/land-transfer", icon: "FileText" },
+    { label: "Property Registry", href: "/cases/land-registry", icon: "Search" },
     { label: "Calendar", href: "/calendar", icon: "CalendarDays" },
     { label: "Payments", href: "/payments", icon: "CreditCard" },
     { label: "Notifications", href: "/notifications", icon: "Bell" },
@@ -201,6 +250,9 @@ export const SIDEBAR_NAV = {
     { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
     { label: "Scrutiny", href: "/cases/scrutiny", icon: "ClipboardCheck" },
     { label: "Cases", href: "/cases", icon: "Briefcase" },
+    { label: "Land Revenue", href: "/cases/land-revenue", icon: "Landmark" },
+    { label: "Land Transfer", href: "/cases/land-transfer", icon: "FileText" },
+    { label: "Property Registry", href: "/cases/land-registry", icon: "Search" },
     { label: "Calendar", href: "/calendar", icon: "CalendarDays" },
     { label: "Notifications", href: "/notifications", icon: "Bell" },
     { label: "Settings", href: "/settings", icon: "Settings" },
@@ -208,6 +260,9 @@ export const SIDEBAR_NAV = {
   trial_judge: [
     { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
     { label: "Trial Cases", href: "/cases", icon: "Gavel" },
+    { label: "Land Revenue", href: "/cases/land-revenue", icon: "Landmark" },
+    { label: "Land Transfer", href: "/cases/land-transfer", icon: "FileText" },
+    { label: "Property Registry", href: "/cases/land-registry", icon: "Search" },
     { label: "Calendar", href: "/calendar", icon: "CalendarDays" },
     { label: "Notifications", href: "/notifications", icon: "Bell" },
     { label: "Settings", href: "/settings", icon: "Settings" },

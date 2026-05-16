@@ -39,6 +39,7 @@ export default function MobileNav({
       >
         <button
           onClick={onClose}
+          aria-label="Close menu"
           className="absolute right-2 top-4 z-50 rounded-lg p-2 text-foreground hover:bg-cream-dark"
         >
           <X className="h-5 w-5" />

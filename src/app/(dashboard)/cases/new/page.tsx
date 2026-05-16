@@ -115,7 +115,23 @@ function NewCaseForm() {
     evidence_type: "" as "oral" | "documentary" | "",
   });
 
-  // ── Lawyer & files ────────────────────────────────────────────────
+  // ── Land Revenue / Land Transfer state ─────────────────────────
+  const [land, setLand] = useState({
+    khasra_number: "",
+    khewat_number: "",
+    district: "",
+    tehsil: "",
+    mauza: "",
+    total_area: "",
+    land_type: "" as "agricultural" | "residential" | "commercial" | "",
+    mutation_number: "",
+    revenue_officer: "",
+    registration_authority: "",
+    deed_number: "",
+    deed_date: "",
+  });
+
+  // ── Lawyer & files ────────────────────────────────────────────
   const [selectedLawyerId, setSelectedLawyerId] = useState(preselectedLawyer ?? "");
   const [files, setFiles] = useState<File[]>([]);
 
@@ -125,6 +141,16 @@ function NewCaseForm() {
 
   const isCriminal = category === "criminal";
   const isMarriageDivorce = category === "marriage_divorce";
+  const isLand = [
+    "land_revenue", "land_mutation", "land_partition",
+    "land_inheritance", "land_acquisition",
+    "land_transfer", "land_sale_deed", "land_gift_deed",
+  ].includes(category);
+  const isLandMutation = category === "land_mutation";
+  const isLandTransfer = [
+    "land_transfer", "land_sale_deed", "land_gift_deed",
+  ].includes(category);
+  const isDeedRequired = category === "land_sale_deed" || category === "land_gift_deed";
 
   // ── Field update helpers ──────────────────────────────────────────
   const setP = (field: string, value: string) =>
@@ -132,8 +158,8 @@ function NewCaseForm() {
   const setD = (field: string, value: string) =>
     setDefendant((prev) => ({ ...prev, [field]: value }));
   const setC = (field: string, value: string) =>
-    setCriminal((prev) => ({ ...prev, [field]: value }));
-
+    setCriminal((prev) => ({ ...prev, [field]: value }));  const setL = (field: string, value: string) =>
+    setLand((prev) => ({ ...prev, [field]: value }));
   // ── Validation ────────────────────────────────────────────────────
   const validateStep1 = (): boolean => {
     setErrors({});
@@ -156,6 +182,20 @@ function NewCaseForm() {
         io_contact: criminal.io_contact || undefined,
         arrest_date: criminal.arrest_date || undefined,
         evidence_type: criminal.evidence_type as "oral" | "documentary",
+      }),
+      ...(isLand && {
+        khasra_number: land.khasra_number,
+        khewat_number: land.khewat_number || undefined,
+        district: land.district,
+        tehsil: land.tehsil,
+        mauza: land.mauza,
+        total_area: land.total_area || undefined,
+        land_type: land.land_type as "agricultural" | "residential" | "commercial" | undefined || undefined,
+        mutation_number: land.mutation_number || undefined,
+        revenue_officer: land.revenue_officer || undefined,
+        registration_authority: land.registration_authority || undefined,
+        deed_number: land.deed_number || undefined,
+        deed_date: land.deed_date || undefined,
       }),
     };
 
@@ -209,6 +249,22 @@ function NewCaseForm() {
             io_contact: criminal.io_contact || undefined,
             arrest_date: criminal.arrest_date || undefined,
             evidence_type: criminal.evidence_type as "oral" | "documentary",
+          }
+        : undefined,
+      land_details: isLand
+        ? {
+            khasra_number: land.khasra_number,
+            khewat_number: land.khewat_number || undefined,
+            district: land.district,
+            tehsil: land.tehsil,
+            mauza: land.mauza,
+            total_area: land.total_area || undefined,
+            land_type: land.land_type as "agricultural" | "residential" | "commercial" | undefined || undefined,
+            mutation_number: land.mutation_number || undefined,
+            revenue_officer: land.revenue_officer || undefined,
+            registration_authority: land.registration_authority || undefined,
+            deed_number: land.deed_number || undefined,
+            deed_date: land.deed_date || undefined,
           }
         : undefined,
     });
@@ -434,6 +490,138 @@ function NewCaseForm() {
                 onChange={(e) => setMarriageCertNumber(e.target.value)}
                 error={errors.marriage_certificate_number}
               />
+            </Card>
+          )}
+
+          {/* Land Revenue / Land Transfer details */}
+          {isLand && (
+            <Card>
+              <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-primary">
+                <FileText className="h-5 w-5" />
+                Land Record Details
+              </h2>
+              <div className="space-y-4">
+                {/* Row 1: Khasra + Khewat */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    id="khasra_number"
+                    label="Khasra Number"
+                    placeholder="e.g., 245/1"
+                    value={land.khasra_number}
+                    onChange={(e) => setL("khasra_number", e.target.value)}
+                    error={errors.khasra_number}
+                  />
+                  <Input
+                    id="khewat_number"
+                    label="Khewat / Khatauni Number (Optional)"
+                    placeholder="e.g., 12"
+                    value={land.khewat_number}
+                    onChange={(e) => setL("khewat_number", e.target.value)}
+                  />
+                </div>
+
+                {/* Row 2: District + Tehsil + Mauza */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Input
+                    id="district"
+                    label="District"
+                    placeholder="e.g., Lahore"
+                    value={land.district}
+                    onChange={(e) => setL("district", e.target.value)}
+                    error={errors.district}
+                  />
+                  <Input
+                    id="tehsil"
+                    label="Tehsil"
+                    placeholder="e.g., Shalimar"
+                    value={land.tehsil}
+                    onChange={(e) => setL("tehsil", e.target.value)}
+                    error={errors.tehsil}
+                  />
+                  <Input
+                    id="mauza"
+                    label="Mauza (Village / Locality)"
+                    placeholder="e.g., Mauza Shahdara"
+                    value={land.mauza}
+                    onChange={(e) => setL("mauza", e.target.value)}
+                    error={errors.mauza}
+                  />
+                </div>
+
+                {/* Row 3: Area + Land Type */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    id="total_area"
+                    label="Total Area (Optional)"
+                    placeholder="e.g., 2 Kanals 5 Marlas"
+                    value={land.total_area}
+                    onChange={(e) => setL("total_area", e.target.value)}
+                  />
+                  <Select
+                    id="land_type"
+                    label="Land Type (Optional)"
+                    options={[
+                      { value: "", label: "— Select —" },
+                      { value: "agricultural", label: "Agricultural" },
+                      { value: "residential", label: "Residential" },
+                      { value: "commercial", label: "Commercial" },
+                    ]}
+                    value={land.land_type}
+                    onChange={(e) => setL("land_type", e.target.value)}
+                  />
+                </div>
+
+                {/* Mutation number — only for land_mutation */}
+                {isLandMutation && (
+                  <Input
+                    id="mutation_number"
+                    label="Mutation Number (Intiqal No.)"
+                    placeholder="e.g., MUT-2024-00456"
+                    value={land.mutation_number}
+                    onChange={(e) => setL("mutation_number", e.target.value)}
+                    error={errors.mutation_number}
+                  />
+                )}
+
+                {/* Revenue Officer */}
+                <Input
+                  id="revenue_officer"
+                  label="Patwari / Revenue Officer Name (Optional)"
+                  placeholder="Name of the Patwari or Tehsildar"
+                  value={land.revenue_officer}
+                  onChange={(e) => setL("revenue_officer", e.target.value)}
+                />
+
+                {/* Transfer-specific fields */}
+                {isLandTransfer && (
+                  <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <Input
+                        id="deed_number"
+                        label={`Deed Number${isDeedRequired ? "" : " (Optional)"}`}
+                        placeholder="e.g., REG-2024-00789"
+                        value={land.deed_number}
+                        onChange={(e) => setL("deed_number", e.target.value)}
+                        error={errors.deed_number}
+                      />
+                      <Input
+                        id="deed_date"
+                        label="Deed Date (Optional)"
+                        type="date"
+                        value={land.deed_date}
+                        onChange={(e) => setL("deed_date", e.target.value)}
+                      />
+                    </div>
+                    <Input
+                      id="registration_authority"
+                      label="Registration Authority (Optional)"
+                      placeholder="e.g., Sub-Registrar Office, Lahore"
+                      value={land.registration_authority}
+                      onChange={(e) => setL("registration_authority", e.target.value)}
+                    />
+                  </>
+                )}
+              </div>
             </Card>
           )}
 

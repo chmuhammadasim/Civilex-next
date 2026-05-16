@@ -34,7 +34,8 @@ export function useCases() {
           criminal_details:criminal_case_details(
             id, fir_number, police_station, bail_status,
             offense_description, offense_section
-          )
+          ),
+          land_details:land_case_details(*)
         `)
         .order("created_at", { ascending: false });
 
@@ -110,7 +111,7 @@ export function useCases() {
   }, [fetchCases]);
 
   const createCase = async (caseData: {
-    case_type: "civil" | "criminal" | "family";
+    case_type: "civil" | "criminal" | "family" | "land_revenue" | "land_transfer";
     case_category: string;
     title: string;
     description: string;
@@ -141,6 +142,21 @@ export function useCases() {
       io_contact?: string;
       arrest_date?: string;
       evidence_type: "oral" | "documentary";
+    };
+    // Land Revenue / Land Transfer
+    land_details?: {
+      khasra_number: string;
+      khewat_number?: string;
+      district: string;
+      tehsil: string;
+      mauza: string;
+      total_area?: string;
+      land_type?: "agricultural" | "residential" | "commercial";
+      mutation_number?: string;
+      revenue_officer?: string;
+      registration_authority?: string;
+      deed_number?: string;
+      deed_date?: string;
     };
   }) => {
     if (!user) return { error: "Not authenticated", data: null };
@@ -196,6 +212,34 @@ export function useCases() {
 
         if (crimError) {
           console.error("Error creating criminal details:", crimError);
+        }
+      }
+
+      // If land revenue/transfer, insert land details
+      if (
+        (caseData.case_type === "land_revenue" || caseData.case_type === "land_transfer") &&
+        caseData.land_details
+      ) {
+        const { error: landError } = await supabase
+          .from("land_case_details")
+          .insert({
+            case_id: newCase.id,
+            khasra_number: caseData.land_details.khasra_number,
+            khewat_number: caseData.land_details.khewat_number || null,
+            district: caseData.land_details.district,
+            tehsil: caseData.land_details.tehsil,
+            mauza: caseData.land_details.mauza,
+            total_area: caseData.land_details.total_area || null,
+            land_type: caseData.land_details.land_type || null,
+            mutation_number: caseData.land_details.mutation_number || null,
+            revenue_officer: caseData.land_details.revenue_officer || null,
+            registration_authority: caseData.land_details.registration_authority || null,
+            deed_number: caseData.land_details.deed_number || null,
+            deed_date: caseData.land_details.deed_date || null,
+          });
+
+        if (landError) {
+          console.error("Error creating land details:", landError);
         }
       }
 

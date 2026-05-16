@@ -1,6 +1,6 @@
 -- ============================================================
 -- Civilex — Complete Database Schema
--- Single consolidated file replacing migrations 00001–00022
+-- Single consolidated file replacing migrations 00001–00039
 -- Run this in Supabase SQL Editor on a fresh project
 -- ============================================================
 
@@ -19,7 +19,7 @@ CREATE TYPE public.user_role AS ENUM (
   'client', 'lawyer', 'admin_court', 'magistrate', 'trial_judge', 'stenographer'
 );
 
-CREATE TYPE public.case_type AS ENUM ('civil', 'criminal', 'family');
+CREATE TYPE public.case_type AS ENUM ('civil', 'criminal', 'family', 'land_revenue', 'land_transfer');
 
 CREATE TYPE public.case_status AS ENUM (
   'draft',
@@ -40,7 +40,13 @@ CREATE TYPE public.case_status AS ENUM (
   'reserved_for_judgment',
   'judgment_delivered',
   'closed',
-  'disposed'
+  'disposed',
+  'withdrawn',
+  'stayed',
+  'remanded',
+  'appeal_filed',
+  'under_execution',
+  'satisfied'
 );
 
 CREATE TYPE public.document_type AS ENUM (
@@ -51,7 +57,7 @@ CREATE TYPE public.document_type AS ENUM (
 CREATE TYPE public.assignment_status AS ENUM ('pending', 'accepted', 'declined');
 CREATE TYPE public.assignment_side   AS ENUM ('plaintiff', 'defendant');
 
-CREATE TYPE public.payment_method AS ENUM ('jazzcash', 'easypaisa', 'bank_transfer');
+CREATE TYPE public.payment_method AS ENUM ('jazzcash', 'easypaisa', 'bank_transfer', 'card');
 CREATE TYPE public.payment_status  AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded');
 CREATE TYPE public.payment_type    AS ENUM ('court_fee', 'lawyer_fee', 'stamp_duty', 'miscellaneous');
 
@@ -65,13 +71,62 @@ CREATE TYPE public.notification_type AS ENUM (
 
 CREATE TYPE public.scrutiny_decision AS ENUM ('pending', 'approved', 'returned');
 
-CREATE TYPE public.hearing_type   AS ENUM ('preliminary', 'regular', 'arguments', 'judgment', 'bail', 'miscellaneous');
+CREATE TYPE public.hearing_type   AS ENUM ('preliminary', 'regular', 'arguments', 'judgment', 'bail', 'miscellaneous', 'framing_of_issues', 'evidence_recording', 'cross_examination', 'final_arguments');
 CREATE TYPE public.hearing_status AS ENUM ('scheduled', 'in_progress', 'completed', 'adjourned', 'cancelled');
 CREATE TYPE public.order_type     AS ENUM ('interim', 'final', 'adjournment', 'summon', 'bail', 'transfer', 'miscellaneous');
 
 CREATE TYPE public.witness_status AS ENUM ('listed', 'summoned', 'examined', 'cross_examined', 'recalled', 'hostile', 'excused');
 CREATE TYPE public.witness_side   AS ENUM ('prosecution', 'defense', 'court');
 CREATE TYPE public.evidence_status AS ENUM ('submitted', 'admitted', 'objected', 'rejected', 'marked');
+
+-- Hearing transcript lifecycle
+CREATE TYPE public.transcript_status AS ENUM ('draft', 'signed');
+
+-- Case issues (Order XIV framing)
+CREATE TYPE public.issue_type    AS ENUM ('fact', 'law', 'mixed');
+CREATE TYPE public.issue_finding AS ENUM ('affirmative', 'negative', 'partly', 'not_pressed');
+
+-- Hearing adjournments
+CREATE TYPE public.adjournment_reason AS ENUM (
+  'party_absent', 'counsel_unavailable', 'document_pending',
+  'court_busy', 'judge_absent', 'witness_absent', 'other'
+);
+
+-- Decrees (CPC Order XX)
+CREATE TYPE public.decree_type AS ENUM (
+  'money', 'possession', 'injunction', 'declaration',
+  'specific_performance', 'partition', 'dismissal', 'compromise', 'other'
+);
+CREATE TYPE public.decree_status AS ENUM (
+  'drafted', 'signed', 'executed', 'satisfied', 'pending_execution'
+);
+
+-- Appeals (CPC Section 96)
+CREATE TYPE public.appeal_forum  AS ENUM ('district_court', 'high_court', 'supreme_court');
+CREATE TYPE public.appeal_side   AS ENUM ('plaintiff', 'defendant');
+CREATE TYPE public.appeal_status AS ENUM (
+  'filed', 'admitted', 'rejected', 'dismissed',
+  'allowed', 'withdrawn', 'time_barred'
+);
+
+-- Execution (CPC Order XXI)
+CREATE TYPE public.execution_mode AS ENUM (
+  'attachment_movable', 'attachment_immovable', 'sale_movable', 'sale_immovable',
+  'delivery_possession', 'arrest_detention', 'appoint_receiver',
+  'payment_into_court', 'other'
+);
+CREATE TYPE public.execution_status AS ENUM (
+  'filed', 'notice_issued', 'attachment_ordered', 'property_attached',
+  'sale_ordered', 'warrant_issued', 'satisfied', 'partially_satisfied',
+  'struck_off', 'dismissed'
+);
+CREATE TYPE public.warrant_type   AS ENUM ('attachment', 'arrest', 'delivery', 'sale_proclamation');
+CREATE TYPE public.warrant_status AS ENUM (
+  'issued', 'served', 'returned_executed', 'returned_unexecuted', 'recalled'
+);
+
+-- Scrutiny return target
+CREATE TYPE public.return_target AS ENUM ('plaintiff', 'defendant', 'both');
 
 
 -- ============================================================
@@ -82,6 +137,50 @@ CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ============================================================
+-- FUNCTION: auto_generate_case_number (BEFORE INSERT trigger)
+-- Race-safe case number generation using advisory locks
+-- SECURITY DEFINER ensures it bypasses RLS policies
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.auto_generate_case_number()
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  prefix TEXT;
+  seq    INTEGER;
+  lock_key BIGINT;
+BEGIN
+  IF NEW.case_number IS NOT NULL AND NEW.case_number != '' THEN
+    RETURN NEW;
+  END IF;
+
+  prefix := CASE NEW.case_type
+    WHEN 'civil'         THEN 'CIV'
+    WHEN 'criminal'      THEN 'CRM'
+    WHEN 'family'        THEN 'FAM'
+    WHEN 'land_revenue'  THEN 'LRV'
+    WHEN 'land_transfer' THEN 'LTR'
+    ELSE 'CAS'
+  END;
+
+  lock_key := hashtext(NEW.case_type::TEXT);
+  PERFORM pg_advisory_xact_lock(lock_key);
+
+  SELECT COALESCE(MAX(CAST(SPLIT_PART(case_number, '-', 3) AS INTEGER)), 0) + 1
+  INTO seq
+  FROM public.cases
+  WHERE case_type = NEW.case_type
+    AND SPLIT_PART(case_number, '-', 2) = EXTRACT(YEAR FROM now())::TEXT;
+
+  NEW.case_number := prefix || '-' || EXTRACT(YEAR FROM now())::TEXT || '-' || LPAD(seq::TEXT, 4, '0');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -175,6 +274,9 @@ CREATE TABLE public.cases (
 
   -- Family-specific
   marriage_certificate_number  TEXT,
+
+  -- Petition relief
+  relief_sought                TEXT,
 
   created_at  TIMESTAMPTZ DEFAULT now(),
   updated_at  TIMESTAMPTZ DEFAULT now()
@@ -341,6 +443,7 @@ CREATE TABLE public.scrutiny_checklist (
   proper_format            BOOLEAN DEFAULT false NOT NULL,
   decision                 public.scrutiny_decision DEFAULT 'pending' NOT NULL,
   remarks                  TEXT,
+  return_to                public.return_target,
   reviewed_at              TIMESTAMPTZ,
   created_at               TIMESTAMPTZ DEFAULT now()
 );
@@ -486,6 +589,7 @@ CREATE TABLE public.evidence_records (
   admission_date      DATE,
   objection_remarks   TEXT,
   court_remarks       TEXT,
+  hearing_id          UUID REFERENCES public.hearings(id) ON DELETE SET NULL,
   created_at          TIMESTAMPTZ DEFAULT now(),
   updated_at          TIMESTAMPTZ DEFAULT now()
 );
@@ -589,6 +693,300 @@ CREATE INDEX idx_doc_requests_case ON public.document_requests(case_id);
 CREATE INDEX idx_doc_requests_from ON public.document_requests(requested_from);
 CREATE INDEX idx_doc_requests_by   ON public.document_requests(requested_by);
 
+-- hearing_id index on evidence_records (added for per-hearing admission tracking)
+CREATE INDEX idx_evidence_hearing ON public.evidence_records(hearing_id);
+
+-- ── hearing_transcripts ───────────────────────────────────────
+CREATE TABLE public.hearing_transcripts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hearing_id      UUID NOT NULL UNIQUE REFERENCES public.hearings(id) ON DELETE CASCADE,
+  case_id         UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  stenographer_id UUID REFERENCES public.profiles(id),
+  transcript_text TEXT NOT NULL DEFAULT '',
+  status          public.transcript_status NOT NULL DEFAULT 'draft',
+  signed_at       TIMESTAMPTZ,
+  word_count      INTEGER NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  updated_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_hearing_transcripts_case  ON public.hearing_transcripts(case_id);
+CREATE INDEX idx_hearing_transcripts_steno ON public.hearing_transcripts(stenographer_id);
+
+CREATE TRIGGER hearing_transcripts_updated_at
+  BEFORE UPDATE ON public.hearing_transcripts
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── case_issues ───────────────────────────────────────────────
+CREATE TABLE public.case_issues (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id      UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  issue_number INTEGER NOT NULL,
+  issue_text   TEXT NOT NULL,
+  issue_type   public.issue_type NOT NULL DEFAULT 'fact',
+  burden_of_proof TEXT,
+  finding      public.issue_finding,
+  finding_text TEXT,
+  framed_by    UUID REFERENCES public.profiles(id),
+  framed_at    TIMESTAMPTZ DEFAULT now(),
+  decided_by   UUID REFERENCES public.profiles(id),
+  decided_at   TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  updated_at   TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (case_id, issue_number)
+);
+
+CREATE INDEX idx_case_issues_case ON public.case_issues(case_id);
+
+CREATE TRIGGER case_issues_updated_at
+  BEFORE UPDATE ON public.case_issues
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── hearing_adjournments ──────────────────────────────────────
+CREATE TABLE public.hearing_adjournments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hearing_id  UUID NOT NULL REFERENCES public.hearings(id) ON DELETE CASCADE,
+  case_id     UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  reason      public.adjournment_reason NOT NULL,
+  reason_text TEXT,
+  cost_imposed NUMERIC(10,2) DEFAULT 0,
+  next_date   TIMESTAMPTZ,
+  adjourned_by UUID REFERENCES public.profiles(id),
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_adjournments_hearing ON public.hearing_adjournments(hearing_id);
+CREATE INDEX idx_adjournments_case    ON public.hearing_adjournments(case_id);
+
+-- ── evidence_issue_links ──────────────────────────────────────
+CREATE TABLE public.evidence_issue_links (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  evidence_id UUID NOT NULL REFERENCES public.evidence_records(id) ON DELETE CASCADE,
+  issue_id    UUID NOT NULL REFERENCES public.case_issues(id) ON DELETE CASCADE,
+  case_id     UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  tagged_by   UUID REFERENCES public.profiles(id),
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (evidence_id, issue_id)
+);
+
+CREATE INDEX idx_evidence_issue_links_evidence ON public.evidence_issue_links(evidence_id);
+CREATE INDEX idx_evidence_issue_links_issue    ON public.evidence_issue_links(issue_id);
+CREATE INDEX idx_evidence_issue_links_case     ON public.evidence_issue_links(case_id);
+
+-- ── decrees ───────────────────────────────────────────────────
+CREATE TABLE public.decrees (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id               UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  judgment_id           UUID REFERENCES public.judgment_records(id) ON DELETE SET NULL,
+  decree_number         TEXT,
+  decree_type           public.decree_type NOT NULL,
+  status                public.decree_status NOT NULL DEFAULT 'drafted',
+  decree_holder_id      UUID REFERENCES public.profiles(id),
+  judgment_debtor_id    UUID REFERENCES public.profiles(id),
+  operative_text        TEXT NOT NULL,
+  relief_granted        TEXT,
+  amount_awarded        NUMERIC(14,2),
+  costs_awarded         NUMERIC(14,2),
+  interest_terms        TEXT,
+  compliance_period_days INTEGER,
+  drawn_up_by           UUID REFERENCES public.profiles(id),
+  drawn_up_at           TIMESTAMPTZ DEFAULT now(),
+  signed_by             UUID REFERENCES public.profiles(id),
+  signed_at             TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_decrees_case      ON public.decrees(case_id);
+CREATE INDEX idx_decrees_judgment  ON public.decrees(judgment_id);
+CREATE INDEX idx_decrees_status    ON public.decrees(status);
+CREATE UNIQUE INDEX idx_decrees_one_per_case ON public.decrees(case_id);
+
+CREATE TRIGGER decrees_updated_at
+  BEFORE UPDATE ON public.decrees
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── appeals ───────────────────────────────────────────────────
+CREATE TABLE public.appeals (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id                UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  decree_id              UUID REFERENCES public.decrees(id) ON DELETE SET NULL,
+  judgment_id            UUID REFERENCES public.judgment_records(id) ON DELETE SET NULL,
+  appeal_number          TEXT,
+  appellate_forum        public.appeal_forum NOT NULL,
+  appellant_side         public.appeal_side NOT NULL,
+  appellant_id           UUID NOT NULL REFERENCES public.profiles(id),
+  respondent_id          UUID REFERENCES public.profiles(id),
+  judgment_date          DATE NOT NULL,
+  limitation_days        INTEGER NOT NULL,
+  filed_on               DATE NOT NULL DEFAULT CURRENT_DATE,
+  is_time_barred         BOOLEAN GENERATED ALWAYS AS ((filed_on - judgment_date) > limitation_days) STORED,
+  condonation_requested  BOOLEAN NOT NULL DEFAULT false,
+  condonation_reason     TEXT,
+  grounds_of_appeal      TEXT NOT NULL,
+  relief_sought          TEXT NOT NULL,
+  status                 public.appeal_status NOT NULL DEFAULT 'filed',
+  admitted_at            TIMESTAMPTZ,
+  admitted_by            UUID REFERENCES public.profiles(id),
+  disposal_date          TIMESTAMPTZ,
+  disposal_reason        TEXT,
+  filed_by               UUID NOT NULL REFERENCES public.profiles(id),
+  created_at             TIMESTAMPTZ DEFAULT now(),
+  updated_at             TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_appeals_case      ON public.appeals(case_id);
+CREATE INDEX idx_appeals_decree    ON public.appeals(decree_id);
+CREATE INDEX idx_appeals_status    ON public.appeals(status);
+CREATE INDEX idx_appeals_appellant ON public.appeals(appellant_id);
+
+CREATE TRIGGER appeals_updated_at
+  BEFORE UPDATE ON public.appeals
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── execution_applications ────────────────────────────────────
+CREATE TABLE public.execution_applications (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id                UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  decree_id              UUID NOT NULL REFERENCES public.decrees(id) ON DELETE CASCADE,
+  execution_number       TEXT,
+  execution_mode         public.execution_mode NOT NULL,
+  status                 public.execution_status NOT NULL DEFAULT 'filed',
+  decree_holder_id       UUID NOT NULL REFERENCES public.profiles(id),
+  judgment_debtor_id     UUID NOT NULL REFERENCES public.profiles(id),
+  decretal_amount        NUMERIC(14,2),
+  amount_recovered       NUMERIC(14,2) DEFAULT 0,
+  property_description   TEXT,
+  property_location      TEXT,
+  grounds                TEXT NOT NULL,
+  relief_sought          TEXT NOT NULL,
+  filed_on               DATE NOT NULL DEFAULT CURRENT_DATE,
+  notice_issued_at       TIMESTAMPTZ,
+  attachment_ordered_at  TIMESTAMPTZ,
+  satisfied_at           TIMESTAMPTZ,
+  satisfaction_note      TEXT,
+  filed_by               UUID NOT NULL REFERENCES public.profiles(id),
+  presiding_officer_id   UUID REFERENCES public.profiles(id),
+  created_at             TIMESTAMPTZ DEFAULT now(),
+  updated_at             TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_execution_case   ON public.execution_applications(case_id);
+CREATE INDEX idx_execution_decree ON public.execution_applications(decree_id);
+CREATE INDEX idx_execution_status ON public.execution_applications(status);
+CREATE INDEX idx_execution_holder ON public.execution_applications(decree_holder_id);
+
+CREATE TRIGGER execution_applications_updated_at
+  BEFORE UPDATE ON public.execution_applications
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── execution_warrants ────────────────────────────────────────
+CREATE TABLE public.execution_warrants (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  execution_id   UUID NOT NULL REFERENCES public.execution_applications(id) ON DELETE CASCADE,
+  warrant_number TEXT,
+  warrant_type   public.warrant_type NOT NULL,
+  status         public.warrant_status NOT NULL DEFAULT 'issued',
+  issued_on      DATE NOT NULL DEFAULT CURRENT_DATE,
+  returnable_by  DATE,
+  bailiff_name   TEXT,
+  directions     TEXT NOT NULL,
+  served_on      DATE,
+  return_note    TEXT,
+  issued_by      UUID NOT NULL REFERENCES public.profiles(id),
+  created_at     TIMESTAMPTZ DEFAULT now(),
+  updated_at     TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_warrants_execution ON public.execution_warrants(execution_id);
+CREATE INDEX idx_warrants_status    ON public.execution_warrants(status);
+
+CREATE TRIGGER execution_warrants_updated_at
+  BEFORE UPDATE ON public.execution_warrants
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── written_statements ────────────────────────────────────────
+CREATE TABLE public.written_statements (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id                UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  filed_by               UUID REFERENCES public.profiles(id),
+  filed_at               TIMESTAMPTZ,
+  status                 TEXT NOT NULL DEFAULT 'draft'
+                           CHECK (status IN ('draft', 'filed')),
+  general_denial         TEXT,
+  specific_responses     JSONB NOT NULL DEFAULT '[]',
+  preliminary_objections TEXT,
+  counter_arguments      TEXT,
+  relief_sought          TEXT,
+  witness_names          TEXT[],
+  created_at             TIMESTAMPTZ DEFAULT now(),
+  updated_at             TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_written_statements_case   ON public.written_statements(case_id);
+CREATE INDEX idx_written_statements_filer  ON public.written_statements(filed_by);
+CREATE INDEX idx_written_statements_status ON public.written_statements(status);
+
+CREATE TRIGGER written_statements_updated_at
+  BEFORE UPDATE ON public.written_statements
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ── hearing_attendance ────────────────────────────────────────
+CREATE TABLE public.hearing_attendance (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hearing_id  UUID NOT NULL REFERENCES public.hearings(id) ON DELETE CASCADE,
+  case_id     UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  person_name TEXT NOT NULL,
+  person_role TEXT NOT NULL
+                CHECK (person_role IN (
+                  'judge', 'plaintiff', 'defendant',
+                  'plaintiff_lawyer', 'defendant_lawyer',
+                  'stenographer', 'witness', 'other'
+                )),
+  side        TEXT CHECK (side IN ('plaintiff', 'defendant', 'court', 'other')),
+  is_present  BOOLEAN NOT NULL DEFAULT true,
+  notes       TEXT,
+  recorded_by UUID REFERENCES public.profiles(id),
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_attendance_hearing ON public.hearing_attendance(hearing_id);
+CREATE INDEX idx_attendance_case    ON public.hearing_attendance(case_id);
+
+-- ── land_case_details ─────────────────────────────────────────
+CREATE TABLE public.land_case_details (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id                UUID NOT NULL REFERENCES public.cases(id) ON DELETE CASCADE,
+  khasra_number          TEXT NOT NULL,
+  khewat_number          TEXT,
+  district               TEXT NOT NULL,
+  tehsil                 TEXT NOT NULL,
+  mauza                  TEXT NOT NULL,
+  total_area             TEXT,
+  land_type              TEXT CHECK (land_type IN ('agricultural', 'residential', 'commercial') OR land_type IS NULL),
+  mutation_number        TEXT,
+  revenue_officer        TEXT,
+  registration_authority TEXT,
+  deed_number            TEXT,
+  deed_date              DATE,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_land_case_details_case_id ON public.land_case_details(case_id);
+
+CREATE OR REPLACE FUNCTION public.touch_land_case_details()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_touch_land_case_details
+  BEFORE UPDATE ON public.land_case_details
+  FOR EACH ROW EXECUTE FUNCTION public.touch_land_case_details();
+
 
 -- ============================================================
 -- HELPER: get current user role (must be after profiles table)
@@ -624,54 +1022,6 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- ============================================================
--- FUNCTION: auto_generate_case_number (BEFORE INSERT trigger)
--- Race-safe case number generation using advisory locks
--- SECURITY DEFINER ensures it bypasses RLS policies
--- ============================================================
-
-CREATE OR REPLACE FUNCTION public.auto_generate_case_number()
-RETURNS TRIGGER 
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  prefix TEXT;
-  seq    INTEGER;
-  lock_key BIGINT;
-BEGIN
-  -- Only generate if case_number is NULL or empty
-  IF NEW.case_number IS NOT NULL AND NEW.case_number != '' THEN
-    RETURN NEW;
-  END IF;
-
-  prefix := CASE NEW.case_type
-    WHEN 'civil'    THEN 'CIV'
-    WHEN 'criminal' THEN 'CRM'
-    WHEN 'family'   THEN 'FAM'
-    ELSE 'CAS'
-  END;
-
-  -- Advisory lock keyed by case_type to prevent concurrent duplicates
-  -- Lock is held for the duration of the transaction (including the INSERT)
-  lock_key := hashtext(NEW.case_type::TEXT);
-  PERFORM pg_advisory_xact_lock(lock_key);
-
-  -- Find next sequence number for this case type and year
-  SELECT COALESCE(MAX(CAST(SPLIT_PART(case_number, '-', 3) AS INTEGER)), 0) + 1
-  INTO seq
-  FROM public.cases
-  WHERE case_type = NEW.case_type
-    AND SPLIT_PART(case_number, '-', 2) = EXTRACT(YEAR FROM now())::TEXT;
-
-  -- Generate the case number
-  NEW.case_number := prefix || '-' || EXTRACT(YEAR FROM now())::TEXT || '-' || LPAD(seq::TEXT, 4, '0');
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
 -- FUNCTION: create_notification helper
 -- ============================================================
 
@@ -691,6 +1041,178 @@ BEGIN
   RETURN v_id;
 END;
 $$;
+
+
+-- ============================================================
+-- FUNCTION: sync_payment_status
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.sync_payment_status(target_case_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_case RECORD;
+  v_completed_count INT;
+BEGIN
+  SELECT id, status, case_number, plaintiff_id, defendant_id
+  INTO v_case FROM public.cases WHERE id = target_case_id;
+
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'error', 'Case not found', 'updated', false);
+  END IF;
+
+  IF NOT (
+    v_case.plaintiff_id = auth.uid() OR v_case.defendant_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.case_assignments ca
+      WHERE ca.case_id = target_case_id AND ca.lawyer_id = auth.uid() AND ca.status IN ('accepted', 'pending')
+    )
+  ) THEN
+    RETURN json_build_object('success', false, 'error', 'Access denied', 'updated', false);
+  END IF;
+
+  IF v_case.status <> 'payment_pending' THEN
+    RETURN json_build_object('success', true, 'error', NULL, 'updated', false, 'message', 'Case is not in payment_pending status');
+  END IF;
+
+  SELECT COUNT(*) INTO v_completed_count
+  FROM public.payments WHERE case_id = target_case_id AND status = 'completed';
+
+  IF v_completed_count = 0 THEN
+    RETURN json_build_object('success', true, 'error', NULL, 'updated', false, 'message', 'No completed payments found');
+  END IF;
+
+  UPDATE public.cases
+  SET status = 'payment_confirmed', updated_at = NOW()
+  WHERE id = target_case_id AND status = 'payment_pending';
+
+  INSERT INTO public.case_activity_log (case_id, actor_id, action, details)
+  VALUES (target_case_id, auth.uid(), 'payment_confirmed',
+    jsonb_build_object('note', 'Payment synced', 'completed_payments', v_completed_count));
+
+  RETURN json_build_object('success', true, 'error', NULL, 'updated', true,
+    'message', 'Case status updated to payment_confirmed', 'case_number', v_case.case_number);
+EXCEPTION WHEN OTHERS THEN
+  RETURN json_build_object('success', false, 'error', SQLERRM, 'updated', false);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.sync_payment_status(UUID) TO authenticated;
+
+
+-- ============================================================
+-- FUNCTION: link_defendant_by_email
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.link_defendant_by_email()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id   uuid := auth.uid();
+  v_email     text;
+  v_full_name text;
+  v_case      record;
+  v_linked    integer := 0;
+  v_cases     jsonb := '[]'::jsonb;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('linked', 0, 'cases', '[]'::jsonb);
+  END IF;
+
+  SELECT email, full_name INTO v_email, v_full_name
+  FROM profiles WHERE id = v_user_id AND role = 'client';
+
+  IF v_email IS NULL THEN
+    RETURN jsonb_build_object('linked', 0, 'cases', '[]'::jsonb);
+  END IF;
+
+  FOR v_case IN
+    SELECT id, case_number, title, plaintiff_id FROM cases
+    WHERE defendant_email = v_email AND defendant_id IS NULL AND plaintiff_id <> v_user_id
+  LOOP
+    UPDATE cases
+    SET defendant_id = v_user_id, defendant_claim_token = NULL, defendant_claim_expires_at = NULL
+    WHERE id = v_case.id AND defendant_id IS NULL;
+
+    IF FOUND THEN
+      v_linked := v_linked + 1;
+      v_cases  := v_cases || jsonb_build_object('id', v_case.id, 'case_number', v_case.case_number, 'title', v_case.title);
+
+      INSERT INTO case_activity_log(case_id, actor_id, action, details)
+      VALUES (v_case.id, v_user_id, 'defendant_auto_linked',
+        jsonb_build_object('matched_email', v_email, 'defendant_name', v_full_name));
+
+      IF v_case.plaintiff_id IS NOT NULL THEN
+        INSERT INTO notifications(user_id, title, message, type, reference_type, reference_id)
+        VALUES (v_case.plaintiff_id, 'Defendant Registered',
+          format('The defendant "%s" has registered for case "%s" (%s).', v_full_name, v_case.title, v_case.case_number),
+          'case_status_changed', 'case', v_case.id);
+      END IF;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object('linked', v_linked, 'cases', v_cases);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.link_defendant_by_email() TO authenticated;
+
+
+-- ============================================================
+-- FUNCTION: send_hearing_reminders (requires pg_cron on Pro plan)
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+CREATE OR REPLACE FUNCTION public.send_hearing_reminders()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  rec        RECORD;
+  party_id   UUID;
+  party_ids  UUID[];
+  assignment RECORD;
+BEGIN
+  FOR rec IN
+    SELECT h.id AS hearing_id, h.case_id, h.hearing_number, h.hearing_type,
+           h.scheduled_date, c.title AS case_title, c.case_number,
+           c.plaintiff_id, c.defendant_id
+    FROM hearings h JOIN cases c ON c.id = h.case_id
+    WHERE h.scheduled_date::date = CURRENT_DATE + INTERVAL '1 day'
+      AND h.status = 'scheduled'
+  LOOP
+    party_ids := ARRAY[]::UUID[];
+    IF rec.plaintiff_id IS NOT NULL THEN party_ids := party_ids || rec.plaintiff_id; END IF;
+    IF rec.defendant_id IS NOT NULL THEN party_ids := party_ids || rec.defendant_id; END IF;
+    FOR assignment IN
+      SELECT lawyer_id FROM case_assignments WHERE case_id = rec.case_id AND status = 'accepted'
+    LOOP
+      IF NOT (assignment.lawyer_id = ANY(party_ids)) THEN
+        party_ids := party_ids || assignment.lawyer_id;
+      END IF;
+    END LOOP;
+    FOREACH party_id IN ARRAY party_ids LOOP
+      INSERT INTO notifications (user_id, title, message, type, reference_type, reference_id)
+      VALUES (
+        party_id, 'Hearing Reminder — Tomorrow',
+        format('Reminder: Hearing #%s (%s) for case "%s" (%s) is scheduled for tomorrow, %s.',
+          rec.hearing_number, replace(rec.hearing_type, '_', ' '),
+          rec.case_title, rec.case_number, to_char(rec.scheduled_date, 'DD Mon YYYY')),
+        'hearing_scheduled', 'case', rec.case_id
+      ) ON CONFLICT DO NOTHING;
+    END LOOP;
+  END LOOP;
+END;
+$$;
+
+SELECT cron.schedule('send-hearing-reminders', '0 8 * * *', 'SELECT send_hearing_reminders()');
 
 
 -- ============================================================
@@ -717,6 +1239,17 @@ ALTER TABLE public.judgment_records      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.otp_signatures        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.judge_drafts          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.document_requests     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hearing_transcripts   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.case_issues           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hearing_adjournments  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.evidence_issue_links  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.decrees               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.appeals               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.execution_applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.execution_warrants    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.written_statements    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hearing_attendance    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.land_case_details     ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -743,7 +1276,7 @@ CREATE POLICY "cases_select_assigned_lawyer" ON public.cases
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.case_assignments ca
-      WHERE ca.case_id = id AND ca.lawyer_id = auth.uid()
+      WHERE ca.case_id = cases.id AND ca.lawyer_id = auth.uid()
     )
   );
 
@@ -766,31 +1299,19 @@ CREATE POLICY "cases_update_own_draft" ON public.cases
   )
   WITH CHECK (auth.uid() = plaintiff_id);
 
--- Lawyers with an ACCEPTED assignment can update case (status transitions)
+-- Lawyers with an accepted or pending assignment can update the case
 CREATE POLICY "cases_update_lawyer" ON public.cases
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.case_assignments ca
-      WHERE ca.case_id = id AND ca.lawyer_id = auth.uid() AND ca.status = 'accepted'
-    )
-  );
-
--- Lawyers with a PENDING assignment can update case (needed for accept/decline flow)
--- WITH CHECK allows the resulting status to be anything as long as the lawyer has
--- any assignment on this case (the assignment will be 'accepted' by the time the
--- case row is updated during acceptCase).
-CREATE POLICY "cases_update_lawyer_pending" ON public.cases
   FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM public.case_assignments ca
-      WHERE ca.case_id = id AND ca.lawyer_id = auth.uid() AND ca.status = 'pending'
+      WHERE ca.case_id = cases.id AND ca.lawyer_id = auth.uid() AND ca.status IN ('pending', 'accepted')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.case_assignments ca
-      WHERE ca.case_id = id AND ca.lawyer_id = auth.uid()
+      WHERE ca.case_id = cases.id AND ca.lawyer_id = auth.uid()
     )
   );
 
@@ -917,6 +1438,28 @@ CREATE POLICY "docs_delete_own" ON public.documents
 -- Admin can delete any document
 CREATE POLICY "docs_delete_admin_any" ON public.documents
   FOR DELETE USING (get_user_role() = 'admin_court');
+
+-- Clients can update their own uploads on their own cases
+CREATE POLICY "docs_update_client" ON public.documents
+  FOR UPDATE USING (
+    auth.uid() = uploaded_by
+    AND get_user_role() = 'client'
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = documents.case_id
+        AND (c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid())
+    )
+  );
+
+-- Clients can delete their own uploads on their own cases
+CREATE POLICY "docs_delete_client" ON public.documents
+  FOR DELETE USING (
+    auth.uid() = uploaded_by
+    AND get_user_role() = 'client'
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = documents.case_id
+        AND (c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid())
+    )
+  );
 
 -- ── case_activity_log ────────────────────────────────────────
 CREATE POLICY "activity_log_select" ON public.case_activity_log
@@ -1123,11 +1666,353 @@ CREATE POLICY "doc_requests_select_court"  ON public.document_requests FOR SELEC
 CREATE POLICY "doc_requests_insert"        ON public.document_requests FOR INSERT WITH CHECK (auth.uid() = requested_by);
 CREATE POLICY "doc_requests_update"        ON public.document_requests FOR UPDATE USING (auth.uid() = requested_by OR auth.uid() = requested_from);
 
+-- ── hearing_transcripts ───────────────────────────────────────
+CREATE POLICY "hearing_transcripts_select" ON public.hearing_transcripts
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = hearing_transcripts.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "hearing_transcripts_insert" ON public.hearing_transcripts
+  FOR INSERT WITH CHECK (get_user_role() IN ('stenographer', 'trial_judge', 'admin_court', 'magistrate'));
+
+CREATE POLICY "hearing_transcripts_update" ON public.hearing_transcripts
+  FOR UPDATE USING (
+    status = 'draft'
+    AND (stenographer_id = auth.uid() OR get_user_role() IN ('trial_judge', 'admin_court', 'magistrate'))
+  );
+
+-- ── case_issues ───────────────────────────────────────────────
+CREATE POLICY "case_issues_select" ON public.case_issues
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = case_issues.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate')
+  );
+
+CREATE POLICY "case_issues_insert" ON public.case_issues
+  FOR INSERT WITH CHECK (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = case_issues.case_id
+        AND c.status IN ('preliminary_hearing', 'issues_framed')
+    )
+  );
+
+CREATE POLICY "case_issues_update" ON public.case_issues
+  FOR UPDATE USING (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = case_issues.case_id
+        AND c.status IN ('preliminary_hearing', 'issues_framed', 'transferred_to_trial',
+          'evidence_stage', 'arguments', 'reserved_for_judgment', 'judgment_delivered')
+    )
+  );
+
+CREATE POLICY "case_issues_delete" ON public.case_issues
+  FOR DELETE USING (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = case_issues.case_id
+        AND c.status IN ('preliminary_hearing', 'issues_framed')
+    )
+  );
+
+-- ── hearing_adjournments ──────────────────────────────────────
+CREATE POLICY "hearing_adjournments_select" ON public.hearing_adjournments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = hearing_adjournments.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "hearing_adjournments_insert" ON public.hearing_adjournments
+  FOR INSERT WITH CHECK (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    OR (
+      get_user_role() = 'stenographer'
+      AND EXISTS (
+        SELECT 1 FROM public.cases c WHERE c.id = hearing_adjournments.case_id AND c.stenographer_id = auth.uid()
+      )
+    )
+  );
+
+-- ── evidence_issue_links ──────────────────────────────────────
+CREATE POLICY "evidence_issue_links_select" ON public.evidence_issue_links
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = evidence_issue_links.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "evidence_issue_links_insert" ON public.evidence_issue_links
+  FOR INSERT WITH CHECK (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    OR (
+      get_user_role() = 'lawyer'
+      AND EXISTS (
+        SELECT 1 FROM public.case_assignments ca
+        WHERE ca.case_id = evidence_issue_links.case_id AND ca.lawyer_id = auth.uid() AND ca.status = 'accepted'
+      )
+    )
+  );
+
+CREATE POLICY "evidence_issue_links_delete" ON public.evidence_issue_links
+  FOR DELETE USING (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    OR (
+      get_user_role() = 'lawyer'
+      AND EXISTS (
+        SELECT 1 FROM public.case_assignments ca
+        WHERE ca.case_id = evidence_issue_links.case_id AND ca.lawyer_id = auth.uid() AND ca.status = 'accepted'
+      )
+    )
+  );
+
+-- ── decrees ───────────────────────────────────────────────────
+CREATE POLICY "decrees_select" ON public.decrees
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = decrees.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "decrees_insert" ON public.decrees
+  FOR INSERT WITH CHECK (
+    get_user_role() IN ('trial_judge', 'admin_court', 'magistrate')
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = decrees.case_id
+        AND c.status IN ('judgment_delivered', 'closed', 'disposed')
+    )
+  );
+
+CREATE POLICY "decrees_update" ON public.decrees
+  FOR UPDATE USING (get_user_role() IN ('trial_judge', 'admin_court', 'magistrate'));
+
+-- ── appeals ───────────────────────────────────────────────────
+CREATE POLICY "appeals_select" ON public.appeals
+  FOR SELECT USING (
+    appellant_id = auth.uid() OR respondent_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = appeals.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "appeals_insert" ON public.appeals
+  FOR INSERT WITH CHECK (
+    filed_by = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = appeals.case_id
+        AND c.status IN ('judgment_delivered', 'closed', 'disposed')
+        AND (
+          c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+          OR EXISTS (
+            SELECT 1 FROM public.case_assignments ca
+            WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid() AND ca.status = 'accepted'
+          )
+        )
+    )
+  );
+
+CREATE POLICY "appeals_update_appellant" ON public.appeals
+  FOR UPDATE USING (appellant_id = auth.uid() AND status = 'filed');
+
+CREATE POLICY "appeals_update_court" ON public.appeals
+  FOR UPDATE USING (get_user_role() IN ('admin_court', 'trial_judge', 'magistrate'));
+
+-- ── execution_applications ────────────────────────────────────
+CREATE POLICY "execution_select" ON public.execution_applications
+  FOR SELECT USING (
+    decree_holder_id = auth.uid() OR judgment_debtor_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = execution_applications.case_id AND (
+        c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "execution_insert" ON public.execution_applications
+  FOR INSERT WITH CHECK (
+    filed_by = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.decrees d WHERE d.id = execution_applications.decree_id
+        AND d.status IN ('signed', 'executed', 'pending_execution')
+        AND (
+          d.decree_holder_id = auth.uid()
+          OR EXISTS (
+            SELECT 1 FROM public.case_assignments ca
+            WHERE ca.case_id = d.case_id AND ca.lawyer_id = auth.uid() AND ca.status = 'accepted'
+          )
+        )
+    )
+  );
+
+CREATE POLICY "execution_update_holder" ON public.execution_applications
+  FOR UPDATE USING (decree_holder_id = auth.uid() AND status = 'filed');
+
+CREATE POLICY "execution_update_court" ON public.execution_applications
+  FOR UPDATE USING (get_user_role() IN ('admin_court', 'trial_judge', 'magistrate'));
+
+-- ── execution_warrants ────────────────────────────────────────
+CREATE POLICY "warrants_select" ON public.execution_warrants
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.execution_applications e WHERE e.id = execution_warrants.execution_id
+        AND (e.decree_holder_id = auth.uid() OR e.judgment_debtor_id = auth.uid())
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "warrants_insert" ON public.execution_warrants
+  FOR INSERT WITH CHECK (
+    issued_by = auth.uid() AND get_user_role() IN ('admin_court', 'trial_judge', 'magistrate')
+  );
+
+CREATE POLICY "warrants_update" ON public.execution_warrants
+  FOR UPDATE USING (get_user_role() IN ('admin_court', 'trial_judge', 'magistrate'));
+
+-- ── written_statements ────────────────────────────────────────
+CREATE POLICY "written_statements_select" ON public.written_statements
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = written_statements.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid() OR c.admin_court_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "written_statements_insert" ON public.written_statements
+  FOR INSERT WITH CHECK (
+    get_user_role() = 'lawyer'
+    AND EXISTS (
+      SELECT 1 FROM public.case_assignments ca
+      WHERE ca.case_id = written_statements.case_id AND ca.lawyer_id = auth.uid()
+        AND ca.status = 'accepted' AND ca.side = 'defendant'
+    )
+  );
+
+CREATE POLICY "written_statements_update" ON public.written_statements
+  FOR UPDATE
+  USING (
+    (filed_by = auth.uid() AND status = 'draft')
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate')
+  )
+  WITH CHECK (
+    filed_by = auth.uid()
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate')
+  );
+
+-- ── hearing_attendance ────────────────────────────────────────
+CREATE POLICY "attendance_select" ON public.hearing_attendance
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = hearing_attendance.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid() OR c.admin_court_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM public.case_assignments ca WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid())
+      )
+    )
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "attendance_insert" ON public.hearing_attendance
+  FOR INSERT WITH CHECK (get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer'));
+
+CREATE POLICY "attendance_update" ON public.hearing_attendance
+  FOR UPDATE USING (
+    recorded_by = auth.uid()
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate', 'stenographer')
+  );
+
+CREATE POLICY "attendance_delete" ON public.hearing_attendance
+  FOR DELETE USING (
+    recorded_by = auth.uid()
+    OR get_user_role() IN ('admin_court', 'trial_judge', 'magistrate')
+  );
+
+-- ── land_case_details ─────────────────────────────────────────
+CREATE POLICY "land_details_select" ON public.land_case_details
+  FOR SELECT TO authenticated USING (
+    EXISTS (
+      SELECT 1 FROM public.cases c WHERE c.id = land_case_details.case_id AND (
+        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
+        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
+        OR EXISTS (
+          SELECT 1 FROM public.case_assignments ca
+          WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid() AND ca.status != 'declined'
+        )
+        OR (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('admin_court', 'magistrate', 'trial_judge')
+      )
+    )
+  );
+
+CREATE POLICY "land_details_insert" ON public.land_case_details
+  FOR INSERT TO authenticated WITH CHECK (
+    EXISTS (SELECT 1 FROM public.cases c WHERE c.id = land_case_details.case_id AND c.plaintiff_id = auth.uid())
+  );
+
+CREATE POLICY "land_details_update" ON public.land_case_details
+  FOR UPDATE TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.cases c WHERE c.id = land_case_details.case_id AND c.plaintiff_id = auth.uid())
+  );
+
 
 -- ============================================================
--- STORAGE BUCKET POLICIES (run after creating buckets)
--- Run: INSERT INTO storage.buckets (id, name, public) VALUES ('case-documents', 'case-documents', false);
+-- STORAGE BUCKET
 -- ============================================================
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'case-documents', 'case-documents', false,
+  20971520,
+  ARRAY[
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'text/plain'
+  ]
+)
+ON CONFLICT (id) DO UPDATE
+  SET file_size_limit    = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 DROP POLICY IF EXISTS "case_documents_select" ON storage.objects;
 DROP POLICY IF EXISTS "case_documents_insert" ON storage.objects;

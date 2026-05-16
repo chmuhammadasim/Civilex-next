@@ -18,6 +18,8 @@ import {
   Calendar,
   CalendarDays,
   FileText,
+  Landmark,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +36,8 @@ const iconMap: Record<string, LucideIcon> = {
   Calendar,
   CalendarDays,
   FileText,
+  Landmark,
+  Search,
 };
 
 interface SidebarProps {
