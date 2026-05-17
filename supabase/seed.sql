@@ -1972,3 +1972,1108 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.notifications n
   WHERE n.user_id = v.user_id::uuid AND n.title = v.title
 );
+
+-- ============================================================
+-- BATCH 3: More Users, Judges, Lawyers, Clients & Diverse Cases
+-- Passwords for all new accounts: demo123456
+--   client5@civilex.pk   → Shahid Mehmood   (Client, Karachi)
+--   client6@civilex.pk   → Nadia Akram      (Client, Rawalpindi)
+--   client7@civilex.pk   → Khalid Mahmood   (Client, Multan)
+--   lawyer5@civilex.pk   → Barrister Faisal Qureshi  (Criminal/Constitutional)
+--   lawyer6@civilex.pk   → Advocate Saima Khan        (Family/Civil)
+--   judge3@civilex.pk    → Justice Rubina Tariq        (Trial Judge, Karachi)
+--   magistrate2@civilex.pk → Magistrate Omar Farooq   (Magistrate, Rawalpindi)
+--   admin2@civilex.pk    → Deputy Registrar Asif Shah  (Admin Court, Multan)
+-- ============================================================
+
+-- ── STEP C1: New Auth Users ──────────────────────────────────────────────────
+
+DO $$
+DECLARE
+  pwd TEXT := crypt('demo123456', gen_salt('bf'));
+BEGIN
+
+  -- client5: Shahid Mehmood (Karachi)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee100001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'client5@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"client","full_name":"Shahid Mehmood"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee100001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee100001-0000-4000-8000-000000000001',
+    'client5@civilex.pk', 'email',
+    '{"sub":"ee100001-0000-4000-8000-000000000001","email":"client5@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'client5@civilex.pk' AND provider = 'email');
+
+  -- client6: Nadia Akram (Rawalpindi)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee200001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'client6@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"client","full_name":"Nadia Akram"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee200001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee200001-0000-4000-8000-000000000001',
+    'client6@civilex.pk', 'email',
+    '{"sub":"ee200001-0000-4000-8000-000000000001","email":"client6@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'client6@civilex.pk' AND provider = 'email');
+
+  -- client7: Khalid Mahmood (Multan)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee300001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'client7@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"client","full_name":"Khalid Mahmood"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee300001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee300001-0000-4000-8000-000000000001',
+    'client7@civilex.pk', 'email',
+    '{"sub":"ee300001-0000-4000-8000-000000000001","email":"client7@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'client7@civilex.pk' AND provider = 'email');
+
+  -- lawyer5: Barrister Faisal Qureshi (Criminal / Constitutional)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee400001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'lawyer5@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"lawyer","full_name":"Barrister Faisal Qureshi"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee400001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee400001-0000-4000-8000-000000000001',
+    'lawyer5@civilex.pk', 'email',
+    '{"sub":"ee400001-0000-4000-8000-000000000001","email":"lawyer5@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'lawyer5@civilex.pk' AND provider = 'email');
+
+  -- lawyer6: Advocate Saima Khan (Family / Civil)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee500001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'lawyer6@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"lawyer","full_name":"Advocate Saima Khan"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee500001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee500001-0000-4000-8000-000000000001',
+    'lawyer6@civilex.pk', 'email',
+    '{"sub":"ee500001-0000-4000-8000-000000000001","email":"lawyer6@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'lawyer6@civilex.pk' AND provider = 'email');
+
+  -- judge3: Justice Rubina Tariq (Trial Judge, Karachi)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee600001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'judge3@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"trial_judge","full_name":"Justice Rubina Tariq"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee600001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee600001-0000-4000-8000-000000000001',
+    'judge3@civilex.pk', 'email',
+    '{"sub":"ee600001-0000-4000-8000-000000000001","email":"judge3@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'judge3@civilex.pk' AND provider = 'email');
+
+  -- magistrate2: Magistrate Omar Farooq (Rawalpindi)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee700001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'magistrate2@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"magistrate","full_name":"Magistrate Omar Farooq"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee700001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee700001-0000-4000-8000-000000000001',
+    'magistrate2@civilex.pk', 'email',
+    '{"sub":"ee700001-0000-4000-8000-000000000001","email":"magistrate2@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'magistrate2@civilex.pk' AND provider = 'email');
+
+  -- admin2: Deputy Registrar Asif Shah (Multan)
+  INSERT INTO auth.users (
+    id, instance_id, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, role, aud,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) SELECT
+    'ee800001-0000-4000-8000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'admin2@civilex.pk', pwd, NOW(),
+    '{"provider":"email","providers":["email"]}',
+    '{"role":"admin_court","full_name":"Deputy Registrar Asif Shah"}',
+    NOW(), NOW(), 'authenticated', 'authenticated', '', '', '', ''
+  WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE id = 'ee800001-0000-4000-8000-000000000001');
+
+  INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
+  SELECT gen_random_uuid(), 'ee800001-0000-4000-8000-000000000001',
+    'admin2@civilex.pk', 'email',
+    '{"sub":"ee800001-0000-4000-8000-000000000001","email":"admin2@civilex.pk","email_verified":true}',
+    NOW(), NOW(), NOW()
+  WHERE NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider_id = 'admin2@civilex.pk' AND provider = 'email');
+
+END $$;
+
+-- ── STEP C2: Update New Profiles ─────────────────────────────────────────────
+
+UPDATE public.profiles SET
+  full_name = 'Shahid Mehmood',
+  phone     = '03002223344',
+  cnic      = '42101-1234567-3',
+  address   = 'Flat 4-B, Block 9, Gulshan-e-Iqbal, Karachi',
+  city      = 'Karachi'
+WHERE id = 'ee100001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Nadia Akram',
+  phone     = '03135559988',
+  cnic      = '37201-9876543-5',
+  address   = 'House 22, Satellite Town, Rawalpindi',
+  city      = 'Rawalpindi'
+WHERE id = 'ee200001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Khalid Mahmood',
+  phone     = '03006667788',
+  cnic      = '36302-4567891-2',
+  address   = '15 Nishtar Colony, Multan',
+  city      = 'Multan'
+WHERE id = 'ee300001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Barrister Faisal Qureshi',
+  phone     = '02135550011',
+  cnic      = '42201-5544332-1',
+  address   = 'Supreme Court Bar, Karachi Registry',
+  city      = 'Karachi'
+WHERE id = 'ee400001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Advocate Saima Khan',
+  phone     = '03015554455',
+  cnic      = '37201-2233445-6',
+  address   = 'Family Court Complex, Rawalpindi',
+  city      = 'Rawalpindi'
+WHERE id = 'ee500001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Justice Rubina Tariq',
+  phone     = '02135556677',
+  address   = 'District & Sessions Court, Karachi South',
+  city      = 'Karachi'
+WHERE id = 'ee600001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Magistrate Omar Farooq',
+  phone     = '03005558899',
+  address   = 'Judicial Complex, Rawalpindi',
+  city      = 'Rawalpindi'
+WHERE id = 'ee700001-0000-4000-8000-000000000001';
+
+UPDATE public.profiles SET
+  full_name = 'Deputy Registrar Asif Shah',
+  phone     = '06135551122',
+  address   = 'District Courts Complex, Multan',
+  city      = 'Multan'
+WHERE id = 'ee800001-0000-4000-8000-000000000001';
+
+-- ── STEP C3: New Lawyer Profiles ─────────────────────────────────────────────
+
+INSERT INTO public.lawyer_profiles (id, bar_license_number, specialization, experience_years, bio, hourly_rate, rating, total_reviews, is_available, location)
+VALUES (
+  'ee400001-0000-4000-8000-000000000001',
+  'KHI-2009-1188',
+  ARRAY['Criminal', 'Constitutional', 'Anti-Terrorism', 'Cyber'],
+  17,
+  'Senior criminal advocate with extensive experience before Session Courts, High Court, and Supreme Court. Handled over 300 criminal matters including high-profile murder, terrorism, and cyber fraud cases.',
+  12000, 4.9, 87, true, 'Karachi'
+) ON CONFLICT (id) DO UPDATE SET
+  specialization   = EXCLUDED.specialization,
+  experience_years = EXCLUDED.experience_years,
+  bio              = EXCLUDED.bio;
+
+INSERT INTO public.lawyer_profiles (id, bar_license_number, specialization, experience_years, bio, hourly_rate, rating, total_reviews, is_available, location)
+VALUES (
+  'ee500001-0000-4000-8000-000000000001',
+  'RWP-2016-4422',
+  ARRAY['Family', 'Civil', 'Guardianship', 'Inheritance'],
+  9,
+  'Experienced family law advocate based in Rawalpindi with specialization in divorce, custody, guardianship, and succession cases. Strong track record in family court matters across Punjab.',
+  5500, 4.6, 41, true, 'Rawalpindi'
+) ON CONFLICT (id) DO UPDATE SET
+  specialization   = EXCLUDED.specialization,
+  experience_years = EXCLUDED.experience_years,
+  bio              = EXCLUDED.bio;
+
+-- ── STEP C4: New Cases (diverse types and statuses) ──────────────────────────
+
+-- FAM-2026-0002: Divorce & Maintenance (reserved_for_judgment) — Shahid vs Nadia
+DELETE FROM public.cases WHERE case_number = 'FAM-2026-0002' AND id != 'ff100001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, defendant_id, admin_court_id, trial_judge_id, stenographer_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_cnic, defendant_address,
+  marriage_certificate_number,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff100001-0000-4000-8000-000000000001'::uuid,
+  'FAM-2026-0002', 'family', 'marriage_divorce', 'reserved_for_judgment',
+  'Shahid Mehmood vs Nadia Akram - Restitution of Conjugal Rights',
+  'Suit for restitution of conjugal rights under Section 9 of the Family Courts Act 1964. The plaintiff (husband) alleges that the defendant (wife) has deserted the matrimonial home without lawful excuse since 01-09-2025. Counter-claim filed by defendant for maintenance and dower.',
+  'ee100001-0000-4000-8000-000000000001',
+  'ee200001-0000-4000-8000-000000000001',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
+  'ee600001-0000-4000-8000-000000000001',
+  '51fd1e7a-86a8-4e5e-9445-18fd947e64b7',
+  'Shahid Mehmood', '03002223344', '42101-1234567-3', 'Flat 4-B, Block 9, Gulshan-e-Iqbal, Karachi',
+  'Nadia Akram', '03135559988', '37201-9876543-5', 'House 22, Satellite Town, Rawalpindi',
+  'NKC-2020-78901',
+  'family_court', 'sensitive', '2025-10-05', '2025-10-14',
+  'Decree for restitution of conjugal rights. In alternative, decree of dissolution. Custody of minor daughter Hira (5 years). Return of dower PKR 3,00,000.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff100001-0000-4000-8000-000000000001');
+
+-- FAM-2026-0003: Guardianship Petition (evidence_stage) — Nadia Akram
+DELETE FROM public.cases WHERE case_number = 'FAM-2026-0003' AND id != 'ff200001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id, trial_judge_id, stenographer_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_cnic, defendant_address,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff200001-0000-4000-8000-000000000001'::uuid,
+  'FAM-2026-0003', 'family', 'guardianship', 'evidence_stage',
+  'Nadia Akram vs Bilal Anwar - Guardianship of Minor',
+  'Petition under the Guardian and Wards Act 1890 for appointment of petitioner as sole guardian of minor son Usman (8 years). Father (respondent) is alleged to be a drug addict and unfit guardian. Petitioner is the natural mother currently residing in Rawalpindi.',
+  'ee200001-0000-4000-8000-000000000001',
+  'ee700001-0000-4000-8000-000000000001',
+  'ee600001-0000-4000-8000-000000000001',
+  '51fd1e7a-86a8-4e5e-9445-18fd947e64b7',
+  'Nadia Akram', '03135559988', '37201-9876543-5', 'House 22, Satellite Town, Rawalpindi',
+  'Bilal Anwar', '03005556789', '37201-1234560-8', '7 Dhoke Hassu, Rawalpindi',
+  'family_court', 'sensitive', '2025-12-01', '2025-12-10',
+  'Appointment as sole guardian of minor Usman. Interim custody pending final decision. Maintenance of PKR 30,000/month. Costs.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff200001-0000-4000-8000-000000000001');
+
+-- CRM-2026-0004: Murder Case (preliminary_hearing) — Khalid Mahmood complainant
+DELETE FROM public.cases WHERE case_number = 'CRM-2026-0004' AND id != 'ff300001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_address,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff300001-0000-4000-8000-000000000001'::uuid,
+  'CRM-2026-0004', 'criminal', 'criminal', 'preliminary_hearing',
+  'State vs Wasim Akram and Others - Murder (Section 302 PPC)',
+  'FIR No. 112/2026 at Multan City Police Station. Complainant Khalid Mahmood alleges that on 10-03-2026 at approximately 9:00 PM, accused Wasim Akram along with two accomplices (unknown) opened fire at the deceased Muhammad Iqbal (brother of complainant) near Dera Adda, Multan, killing him on the spot. Motive stated to be old enmity over agricultural land.',
+  'ee300001-0000-4000-8000-000000000001',
+  'ee800001-0000-4000-8000-000000000001',
+  'Khalid Mahmood', '03006667788', '36302-4567891-2', '15 Nishtar Colony, Multan',
+  'Wasim Akram and co-accused', '03009871234', 'Dera Adda Area, Multan',
+  'admin_court', 'highly_sensitive', '2026-03-11', '2026-03-15',
+  'Prosecution and exemplary punishment of accused under Section 302 PPC. FIR to be read in full.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff300001-0000-4000-8000-000000000001');
+
+-- CRM-2026-0005: Cybercrime / Online Fraud (issues_framed) — Nadia Akram complainant
+DELETE FROM public.cases WHERE case_number = 'CRM-2026-0005' AND id != 'ff400001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_address,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff400001-0000-4000-8000-000000000001'::uuid,
+  'CRM-2026-0005', 'criminal', 'criminal', 'issues_framed',
+  'State vs Cyber Fraud Syndicate - Online Banking Fraud',
+  'Complaint under Prevention of Electronic Crimes Act 2016 (PECA) Sections 10, 13, 16 and Section 420 PPC. Complainant Nadia Akram lost PKR 8,50,000 via phishing attack targeting her HBL account. FIR No. 67/2026 registered at FIA Cyber Crime Wing, Rawalpindi. Three accused identified through IP tracing.',
+  'ee200001-0000-4000-8000-000000000001',
+  'ee700001-0000-4000-8000-000000000001',
+  'Nadia Akram', '03135559988', '37201-9876543-5', 'House 22, Satellite Town, Rawalpindi',
+  'Ali Hassan, Asad Rehman and others', '03221122334', 'E-8/1, Islamabad',
+  'admin_court', 'highly_sensitive', '2025-11-20', '2025-11-28',
+  'Prosecution of accused under PECA 2016. Recovery of defrauded amount PKR 8,50,000. Compensation order.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff400001-0000-4000-8000-000000000001');
+
+-- CIV-2026-0013: Tenant Eviction (issues_framed) — Shahid Mehmood
+DELETE FROM public.cases WHERE case_number = 'CIV-2026-0013' AND id != 'ff500001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id, trial_judge_id, stenographer_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_cnic, defendant_address,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff500001-0000-4000-8000-000000000001'::uuid,
+  'CIV-2026-0013', 'civil', 'civil', 'issues_framed',
+  'Shahid Mehmood vs Tahir Abbas - Suit for Ejectment',
+  'Suit for ejectment of the defendant who is a tenant in commercial property at Shop No. 14, Block-3, Gulshan-e-Iqbal, Karachi. Tenancy expired on 31-12-2025. Defendant refuses to vacate. Monthly rent of PKR 45,000 outstanding for 6 months. Suit is filed under Sindh Rented Premises Ordinance 1979.',
+  'ee100001-0000-4000-8000-000000000001',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
+  'ee600001-0000-4000-8000-000000000001',
+  'cc600001-0000-4000-8000-000000000001',
+  'Shahid Mehmood', '03002223344', '42101-1234567-3', 'Flat 4-B, Block 9, Gulshan-e-Iqbal, Karachi',
+  'Tahir Abbas', '03221234567', '42101-9876543-7', 'Shop 14, Block 3, Gulshan-e-Iqbal, Karachi',
+  'trial_court', 'normal', '2026-01-15', '2026-01-22',
+  'Decree for ejectment and delivery of vacant possession of Shop No. 14. Recovery of outstanding rent PKR 2,70,000. Mesne profits at PKR 45,000/month till vacation. Costs.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff500001-0000-4000-8000-000000000001');
+
+-- CIV-2026-0014: Insurance Claim Dispute (evidence_stage) — Nadia Akram
+DELETE FROM public.cases WHERE case_number = 'CIV-2026-0014' AND id != 'ff600001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id, trial_judge_id, stenographer_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_address,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff600001-0000-4000-8000-000000000001'::uuid,
+  'CIV-2026-0014', 'civil', 'civil', 'evidence_stage',
+  'Nadia Akram vs State Life Insurance - Insurance Claim',
+  'Suit for recovery of insurance death benefit of PKR 50,00,000 under a life insurance policy (Policy No. SL-2019-456789) on the life of deceased husband Bilal Anwar. The defendant (insurance company) has repudiated the claim alleging non-disclosure of pre-existing medical condition. Plaintiff contests this repudiation.',
+  'ee200001-0000-4000-8000-000000000001',
+  'ee700001-0000-4000-8000-000000000001',
+  'ee600001-0000-4000-8000-000000000001',
+  'cc600001-0000-4000-8000-000000000001',
+  'Nadia Akram', '03135559988', '37201-9876543-5', 'House 22, Satellite Town, Rawalpindi',
+  'State Life Insurance Corporation of Pakistan', '051-9201234', 'State Life Building, Islamabad',
+  'trial_court', 'normal', '2025-08-10', '2025-08-20',
+  'Recovery of death benefit PKR 50,00,000. Mark-up at 10% p.a. from date of repudiation. Costs of the suit.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff600001-0000-4000-8000-000000000001');
+
+-- LRV-2026-0005: Benami Land Transfer Challenge (arguments) — Khalid Mahmood
+DELETE FROM public.cases WHERE case_number = 'LRV-2026-0005' AND id != 'ff700001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id, trial_judge_id, stenographer_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_cnic, defendant_address,
+  current_phase, sensitivity, filing_date, registration_date, relief_sought
+)
+SELECT
+  'ff700001-0000-4000-8000-000000000001'::uuid,
+  'LRV-2026-0005', 'land_revenue', 'land_mutation', 'arguments',
+  'Khalid Mahmood vs Anwar Brothers - Benami Transfer Challenge',
+  'Petition challenging benami transfer of agricultural land measuring 18 Kanals in Mauza Qadirpur, Multan, made in favour of defendant (Anwar Brothers firm) by the plaintiff''s deceased father without valid consideration. The transfer is alleged to be benami under the Benami Transactions (Prohibition) Act 2017 to defeat the rights of legal heirs.',
+  'ee300001-0000-4000-8000-000000000001',
+  'ee800001-0000-4000-8000-000000000001',
+  'ee600001-0000-4000-8000-000000000001',
+  'cc600001-0000-4000-8000-000000000001',
+  'Khalid Mahmood', '03006667788', '36302-4567891-2', '15 Nishtar Colony, Multan',
+  'Anwar Brothers (Firm)', '06135550022', NULL, 'Anwar Building, Hussain Agahi, Multan',
+  'revenue_court', 'sensitive', '2025-07-01', '2025-07-10',
+  'Declaration of benami nature of transfer. Setting aside of mutation in favour of Anwar Brothers. Restoration of land to estate of deceased. Costs.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff700001-0000-4000-8000-000000000001');
+
+-- LTR-2026-0003: Mortgage Dispute (submitted_to_admin) — Shahid Mehmood
+DELETE FROM public.cases WHERE case_number = 'LTR-2026-0003' AND id != 'ff800001-0000-4000-8000-000000000001';
+INSERT INTO public.cases (
+  id, case_number, case_type, case_category, status, title, description,
+  plaintiff_id, admin_court_id,
+  plaintiff_name, plaintiff_phone, plaintiff_cnic, plaintiff_address,
+  defendant_name, defendant_phone, defendant_address,
+  current_phase, sensitivity, filing_date, relief_sought
+)
+SELECT
+  'ff800001-0000-4000-8000-000000000001'::uuid,
+  'LTR-2026-0003', 'land_transfer', 'land_mortgage', 'submitted_to_admin',
+  'Shahid Mehmood vs MCB Bank - Mortgage Redemption',
+  'Suit for redemption of mortgage under Section 60 of the Transfer of Property Act 1882. Plaintiff executed a mortgage over residential apartment (Flat 4-B, Block 9, Gulshan-e-Iqbal, Karachi) in favour of MCB Bank as security for a loan of PKR 60,00,000. Plaintiff has repaid the principal amount but bank refuses to release the mortgage citing disputed interest calculations.',
+  'ee100001-0000-4000-8000-000000000001',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
+  'Shahid Mehmood', '03002223344', '42101-1234567-3', 'Flat 4-B, Block 9, Gulshan-e-Iqbal, Karachi',
+  'MCB Bank Limited', '021-35680101', 'MCB Tower, I.I. Chundrigar Road, Karachi',
+  'admin_court', 'sensitive', '2026-04-10',
+  'Decree for redemption of mortgage upon tender of any balance legitimately outstanding. Return of title documents. Removal of charge from property records. Costs.'
+WHERE NOT EXISTS (SELECT 1 FROM public.cases WHERE id = 'ff800001-0000-4000-8000-000000000001');
+
+-- ── STEP C5: Land Case Details ────────────────────────────────────────────────
+
+-- LRV-2026-0005 – Benami transfer, Multan
+INSERT INTO public.land_case_details (
+  case_id, khasra_number, khewat_number, district, tehsil, mauza,
+  total_area, land_type, mutation_number, revenue_officer
+)
+SELECT
+  'ff700001-0000-4000-8000-000000000001',
+  '210/4-5', 'KHW-884', 'Multan', 'Multan Sadar', 'Mauza Qadirpur',
+  '18 Kanals', 'agricultural', '4457', 'Patwari Farooq Baig'
+WHERE NOT EXISTS (SELECT 1 FROM public.land_case_details WHERE case_id = 'ff700001-0000-4000-8000-000000000001');
+
+-- LTR-2026-0003 – Mortgage, Karachi
+INSERT INTO public.land_case_details (
+  case_id, khasra_number, khewat_number, district, tehsil, mauza,
+  total_area, land_type, deed_number, deed_date, registration_authority
+)
+SELECT
+  'ff800001-0000-4000-8000-000000000001',
+  'F-4B/Block9', 'N/A', 'Karachi East', 'Gulshan', 'Gulshan-e-Iqbal',
+  '1200 sq ft', 'residential', 'MCB-MTG-2021-0034', '2021-06-15',
+  'Sub-Registrar Karachi East'
+WHERE NOT EXISTS (SELECT 1 FROM public.land_case_details WHERE case_id = 'ff800001-0000-4000-8000-000000000001');
+
+-- ── STEP C6: Criminal Case Details ───────────────────────────────────────────
+
+-- CRM-2026-0004 – Murder case, Multan
+INSERT INTO public.criminal_case_details (
+  case_id, fir_number, police_station, offense_section, offense_description,
+  io_name, bail_status
+)
+SELECT
+  'ff300001-0000-4000-8000-000000000001',
+  'FIR-112/2026', 'Multan City Police Station',
+  'Section 302/34 PPC',
+  'Murder of Muhammad Iqbal (s/o Rehmat Ali) by firearm at Dera Adda, Multan. Three accused: Wasim Akram (named), two unidentified. Motive: land enmity. Deceased died on the spot from bullet wounds to chest and head.',
+  'DSP Muhammad Arif', 'denied'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.criminal_case_details WHERE case_id = 'ff300001-0000-4000-8000-000000000001'
+);
+
+-- CRM-2026-0005 – Cybercrime, Rawalpindi
+INSERT INTO public.criminal_case_details (
+  case_id, fir_number, police_station, offense_section, offense_description,
+  io_name, bail_status
+)
+SELECT
+  'ff400001-0000-4000-8000-000000000001',
+  'FIR-67/2026', 'FIA Cyber Crime Wing, Rawalpindi',
+  'Sections 10, 13, 16 PECA 2016 / Section 420 PPC',
+  'Online banking fraud. Victim Nadia Akram defrauded of PKR 8,50,000 via phishing SMS mimicking HBL. Three accused identified through FIA IP trace: Ali Hassan, Asad Rehman, and Sadia Manzoor. Funds transferred to multiple mule accounts.',
+  'Inspector Tariq Bashir (FIA)', 'granted'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.criminal_case_details WHERE case_id = 'ff400001-0000-4000-8000-000000000001'
+);
+
+-- ── STEP C7: Case Assignments ─────────────────────────────────────────────────
+
+-- Lawyer6 (Saima Khan) on FAM-2026-0002 – plaintiff side (Shahid)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff100001-0000-4000-8000-000000000001', 'ee500001-0000-4000-8000-000000000001',
+       'ee100001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 80000, '2025-10-16'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff100001-0000-4000-8000-000000000001' AND lawyer_id = 'ee500001-0000-4000-8000-000000000001'
+);
+
+-- Lawyer6 on FAM-2026-0003 – Guardianship (plaintiff side – Nadia)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff200001-0000-4000-8000-000000000001', 'ee500001-0000-4000-8000-000000000001',
+       'ee200001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 60000, '2025-12-12'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff200001-0000-4000-8000-000000000001' AND lawyer_id = 'ee500001-0000-4000-8000-000000000001'
+);
+
+-- Lawyer5 (Faisal Qureshi) on CRM-2026-0004 – plaintiff side (Khalid)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff300001-0000-4000-8000-000000000001', 'ee400001-0000-4000-8000-000000000001',
+       'ee300001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 150000, '2026-03-18'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff300001-0000-4000-8000-000000000001' AND lawyer_id = 'ee400001-0000-4000-8000-000000000001'
+);
+
+-- Lawyer5 on CRM-2026-0005 – Cybercrime (plaintiff side – Nadia)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff400001-0000-4000-8000-000000000001', 'ee400001-0000-4000-8000-000000000001',
+       'ee200001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 90000, '2025-11-30'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff400001-0000-4000-8000-000000000001' AND lawyer_id = 'ee400001-0000-4000-8000-000000000001'
+);
+
+-- Lawyer2 (Ayesha Malik) on CIV-2026-0013 – Ejectment (plaintiff side – Shahid)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff500001-0000-4000-8000-000000000001', '1e1e6011-e4ab-446c-8592-a4dbb4168810',
+       'ee100001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 55000, '2026-01-24'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff500001-0000-4000-8000-000000000001' AND lawyer_id = '1e1e6011-e4ab-446c-8592-a4dbb4168810'
+);
+
+-- Lawyer6 on CIV-2026-0014 – Insurance dispute (plaintiff side – Nadia)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff600001-0000-4000-8000-000000000001', 'ee500001-0000-4000-8000-000000000001',
+       'ee200001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 100000, '2025-08-22'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff600001-0000-4000-8000-000000000001' AND lawyer_id = 'ee500001-0000-4000-8000-000000000001'
+);
+
+-- Lawyer3 (Imran Siddiqui) on LRV-2026-0005 – Benami (plaintiff side – Khalid)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff700001-0000-4000-8000-000000000001', 'cc300001-0000-4000-8000-000000000001',
+       'ee300001-0000-4000-8000-000000000001', 'plaintiff', 'accepted', 110000, '2025-07-12'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff700001-0000-4000-8000-000000000001' AND lawyer_id = 'cc300001-0000-4000-8000-000000000001'
+);
+
+-- Lawyer1 (Ali Raza) on LTR-2026-0003 – Mortgage (plaintiff side – Shahid)
+INSERT INTO public.case_assignments (case_id, lawyer_id, client_id, side, status, fee_amount, assigned_at)
+SELECT 'ff800001-0000-4000-8000-000000000001', '3586008a-7dd7-414a-87f2-88479132461c',
+       'ee100001-0000-4000-8000-000000000001', 'plaintiff', 'pending', 70000, '2026-04-12'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_assignments
+  WHERE case_id = 'ff800001-0000-4000-8000-000000000001' AND lawyer_id = '3586008a-7dd7-414a-87f2-88479132461c'
+);
+
+-- ── STEP C8: Payments for new cases ──────────────────────────────────────────
+
+-- Court fee FAM-2026-0002 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, description, paid_at)
+SELECT 'ee010001-0000-4000-8000-000000000001'::uuid,
+  'ff100001-0000-4000-8000-000000000001', 'ee100001-0000-4000-8000-000000000001',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
+  5000, 'court_fee', 'jazzcash', 'completed', 'TXN-2025-FAM-0002',
+  'Court fee for FAM-2026-0002 (Restitution of Conjugal Rights)', '2025-10-12 10:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee010001-0000-4000-8000-000000000001'::uuid);
+
+-- Lawyer fee FAM-2026-0002 instalment 1/2 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, is_installment, installment_number, total_installments,
+  description, paid_at)
+SELECT 'ee020001-0000-4000-8000-000000000001'::uuid,
+  'ff100001-0000-4000-8000-000000000001', 'ee100001-0000-4000-8000-000000000001',
+  'ee500001-0000-4000-8000-000000000001',
+  40000, 'lawyer_fee', 'easypaisa', 'completed', 'TXN-2025-FAM-LAW-01',
+  true, 1, 2, 'Lawyer fee instalment 1/2 – Adv. Saima Khan (FAM-2026-0002)', '2025-10-18 14:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee020001-0000-4000-8000-000000000001'::uuid);
+
+-- Lawyer fee FAM-2026-0002 instalment 2/2 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, is_installment, installment_number, total_installments,
+  parent_payment_id, description, paid_at)
+SELECT 'ee030001-0000-4000-8000-000000000001'::uuid,
+  'ff100001-0000-4000-8000-000000000001', 'ee100001-0000-4000-8000-000000000001',
+  'ee500001-0000-4000-8000-000000000001',
+  40000, 'lawyer_fee', 'jazzcash', 'completed', 'TXN-2025-FAM-LAW-02',
+  true, 2, 2, 'ee020001-0000-4000-8000-000000000001'::uuid,
+  'Lawyer fee instalment 2/2 – Adv. Saima Khan (FAM-2026-0002)', '2025-12-18 11:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee030001-0000-4000-8000-000000000001'::uuid);
+
+-- Court fee FAM-2026-0003 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, description, paid_at)
+SELECT 'ee040001-0000-4000-8000-000000000001'::uuid,
+  'ff200001-0000-4000-8000-000000000001', 'ee200001-0000-4000-8000-000000000001',
+  'ee700001-0000-4000-8000-000000000001',
+  3500, 'court_fee', 'easypaisa', 'completed', 'TXN-2025-FAM-0003',
+  'Court fee for FAM-2026-0003 (Guardianship Petition)', '2025-12-08 09:30:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee040001-0000-4000-8000-000000000001'::uuid);
+
+-- Court fee CRM-2026-0004 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, description, paid_at)
+SELECT 'ee050001-0000-4000-8000-000000000001'::uuid,
+  'ff300001-0000-4000-8000-000000000001', 'ee300001-0000-4000-8000-000000000001',
+  'ee800001-0000-4000-8000-000000000001',
+  2000, 'court_fee', 'bank_transfer', 'completed', 'TXN-2026-CRM-0004',
+  'Court fee for CRM-2026-0004 (Murder Case)', '2026-03-13 10:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee050001-0000-4000-8000-000000000001'::uuid);
+
+-- Lawyer fee CRM-2026-0004 – instalment 1/3 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, is_installment, installment_number, total_installments,
+  description, paid_at)
+SELECT 'ee060001-0000-4000-8000-000000000001'::uuid,
+  'ff300001-0000-4000-8000-000000000001', 'ee300001-0000-4000-8000-000000000001',
+  'ee400001-0000-4000-8000-000000000001',
+  50000, 'lawyer_fee', 'jazzcash', 'completed', 'TXN-2026-CRM-LAW-01',
+  true, 1, 3, 'Lawyer fee instalment 1/3 – Barrister Faisal Qureshi', '2026-03-20 12:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee060001-0000-4000-8000-000000000001'::uuid);
+
+-- Lawyer fee CRM-2026-0004 – instalment 2/3 (pending)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, is_installment, installment_number, total_installments,
+  parent_payment_id, description)
+SELECT 'ee070001-0000-4000-8000-000000000001'::uuid,
+  'ff300001-0000-4000-8000-000000000001', 'ee300001-0000-4000-8000-000000000001',
+  'ee400001-0000-4000-8000-000000000001',
+  50000, 'lawyer_fee', 'jazzcash', 'pending',
+  true, 2, 3, 'ee060001-0000-4000-8000-000000000001'::uuid,
+  'Lawyer fee instalment 2/3 – Barrister Faisal Qureshi'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee070001-0000-4000-8000-000000000001'::uuid);
+
+-- Court fee CIV-2026-0013 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, description, paid_at)
+SELECT 'ee080001-0000-4000-8000-000000000001'::uuid,
+  'ff500001-0000-4000-8000-000000000001', 'ee100001-0000-4000-8000-000000000001',
+  '475b9f5e-d054-41e7-843e-544afb0b3803',
+  10000, 'court_fee', 'card', 'completed', 'TXN-2026-CIV-0013',
+  'Court fee for CIV-2026-0013 (Ejectment Suit)', '2026-01-20 09:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee080001-0000-4000-8000-000000000001'::uuid);
+
+-- Court fee CIV-2026-0014 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, description, paid_at)
+SELECT 'ee090001-0000-4000-8000-000000000001'::uuid,
+  'ff600001-0000-4000-8000-000000000001', 'ee200001-0000-4000-8000-000000000001',
+  'ee700001-0000-4000-8000-000000000001',
+  50000, 'court_fee', 'bank_transfer', 'completed', 'TXN-2025-CIV-0014',
+  'Court fee for CIV-2026-0014 (Insurance Claim, PKR 50L suit)', '2025-08-18 10:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee090001-0000-4000-8000-000000000001'::uuid);
+
+-- Court fee LRV-2026-0005 (completed)
+INSERT INTO public.payments (id, case_id, payer_id, receiver_id, amount, payment_type,
+  payment_method, status, transaction_id, description, paid_at)
+SELECT 'ee0a0001-0000-4000-8000-000000000001'::uuid,
+  'ff700001-0000-4000-8000-000000000001', 'ee300001-0000-4000-8000-000000000001',
+  'ee800001-0000-4000-8000-000000000001',
+  9000, 'court_fee', 'jazzcash', 'completed', 'TXN-2025-LRV-0005',
+  'Court fee for LRV-2026-0005 (Benami Challenge)', '2025-07-08 10:30:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'ee0a0001-0000-4000-8000-000000000001'::uuid);
+
+-- ── STEP C9: Scrutiny Records for new cases ───────────────────────────────────
+
+-- FAM-2026-0002 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff100001-0000-4000-8000-000000000001', '475b9f5e-d054-41e7-843e-544afb0b3803',
+  true, true, true, true, true, true, true, 'approved',
+  'Nikahnama attached. NADRA verification done. Parties resident in Karachi – jurisdiction confirmed. Court fee paid. Petition in prescribed format. Admitted.',
+  '2025-10-13 11:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff100001-0000-4000-8000-000000000001');
+
+-- FAM-2026-0003 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff200001-0000-4000-8000-000000000001', 'ee700001-0000-4000-8000-000000000001',
+  true, true, true, true, true, true, true, 'approved',
+  'Birth certificate of minor attached. Petitioner''s identity established. Family court jurisdiction confirmed (minor ordinarily resides in Rawalpindi). Admitted.',
+  '2025-12-09 10:30:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff200001-0000-4000-8000-000000000001');
+
+-- CRM-2026-0004 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff300001-0000-4000-8000-000000000001', 'ee800001-0000-4000-8000-000000000001',
+  true, true, true, true, true, true, true, 'approved',
+  'Certified copy of FIR 112/2026 attached. Post-mortem report and inquest report annexed. Sessions court has jurisdiction for Section 302 PPC offence. Admitted for proceedings.',
+  '2026-03-14 09:30:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff300001-0000-4000-8000-000000000001');
+
+-- CRM-2026-0005 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff400001-0000-4000-8000-000000000001', 'ee700001-0000-4000-8000-000000000001',
+  true, true, true, true, true, true, true, 'approved',
+  'FIA complaint with IP trace report attached. Bank transaction records annexed. Jurisdiction of Special Court (PECA) confirmed. Admitted.',
+  '2025-11-26 10:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff400001-0000-4000-8000-000000000001');
+
+-- CIV-2026-0013 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff500001-0000-4000-8000-000000000001', '475b9f5e-d054-41e7-843e-544afb0b3803',
+  true, true, true, true, true, true, true, 'approved',
+  'Tenancy agreement, rent receipts, and legal notice attached. Rent Controller jurisdiction confirmed. Court fee paid on claimed arrears. Admitted.',
+  '2026-01-21 11:30:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff500001-0000-4000-8000-000000000001');
+
+-- CIV-2026-0014 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff600001-0000-4000-8000-000000000001', 'ee700001-0000-4000-8000-000000000001',
+  true, true, true, true, true, true, true, 'approved',
+  'Insurance policy copy, repudiation letter, death certificate attached. Court fee paid as per insurance claim value. Limitation period within 6 years of repudiation. Admitted.',
+  '2025-08-19 10:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff600001-0000-4000-8000-000000000001');
+
+-- LRV-2026-0005 (approved)
+INSERT INTO public.scrutiny_checklist (case_id, reviewed_by,
+  proper_documentation, court_fees_paid, jurisdiction_verified,
+  parties_identified, cause_of_action_valid, limitation_period_checked, proper_format,
+  decision, remarks, reviewed_at)
+SELECT 'ff700001-0000-4000-8000-000000000001', 'ee800001-0000-4000-8000-000000000001',
+  true, true, true, true, true, true, true, 'approved',
+  'Certified copy of disputed mutation and revenue record attached. Benami Transactions Act 2017 provides cause of action. Revenue court jurisdiction confirmed. Court fee paid. Admitted.',
+  '2025-07-09 11:00:00'
+WHERE NOT EXISTS (SELECT 1 FROM public.scrutiny_checklist WHERE case_id = 'ff700001-0000-4000-8000-000000000001');
+
+-- ── STEP C10: Hearings for new cases ──────────────────────────────────────────
+
+-- FAM-2026-0002 – Hearing 1: Conciliation (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe010001-0000-4000-8000-000000000001'::uuid,
+  'ff100001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2025-10-20 10:00:00', '2025-10-20 11:15:00',
+  'ee600001-0000-4000-8000-000000000001', 'Family Court Room 1, Karachi',
+  'First hearing. Conciliation proceedings conducted per Family Courts Act. Plaintiff appeared with counsel; defendant appeared in person (no counsel). Reconciliation attempted; defendant denied any cruelty or desertion but refused to return. Conciliation failed.',
+  'Conciliation failed. Parties to proceed for evidence. Interim maintenance of PKR 20,000/month for minor Hira ordered from today.',
+  '2025-11-18 10:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe010001-0000-4000-8000-000000000001'::uuid);
+
+-- FAM-2026-0002 – Hearing 2: Evidence (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe020001-0000-4000-8000-000000000001'::uuid,
+  'ff100001-0000-4000-8000-000000000001',
+  2, 'regular', '2025-11-18 10:00:00', '2025-11-18 11:30:00',
+  'ee600001-0000-4000-8000-000000000001', 'Family Court Room 1, Karachi',
+  'PW-1 (Plaintiff Shahid Mehmood) examined. Marriage certificate Exh. P-1, Nikahnama Exh. P-2 tendered. WhatsApp messages (Exh. P-3) showing defendant''s refusal to return admitted. Cross-examination: defendant''s counsel questioned plaintiff on alleged cruelty claims. No counter claim for divorce pressed at this stage.',
+  'PW-1 cross-examination concluded. Defendant''s evidence on next date. Case is proceeding at pace.',
+  '2025-12-20 10:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe020001-0000-4000-8000-000000000001'::uuid);
+
+-- FAM-2026-0002 – Hearing 3: Arguments (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe030001-0000-4000-8000-000000000001'::uuid,
+  'ff100001-0000-4000-8000-000000000001',
+  3, 'final_arguments', '2026-02-10 10:00:00', '2026-02-10 12:00:00',
+  'ee600001-0000-4000-8000-000000000001', 'Family Court Room 1, Karachi',
+  'Final arguments heard from both sides. Plaintiff''s counsel argued that desertion is established. Defendant''s counsel argued no cruelty occurred and sought dismissal. Written synopses filed by both parties. Judgment reserved.',
+  'Judgment reserved. To be announced on next date.',
+  '2026-03-05 10:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe030001-0000-4000-8000-000000000001'::uuid);
+
+-- FAM-2026-0003 – Hearing 1: Guardianship (preliminary, completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe040001-0000-4000-8000-000000000001'::uuid,
+  'ff200001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2025-12-18 11:00:00', '2025-12-18 12:00:00',
+  'ee600001-0000-4000-8000-000000000001', 'Family Court Room 2, Rawalpindi',
+  'Preliminary hearing in guardianship petition. Both parents appeared. Minor welfare report ordered from District Social Welfare Officer. Interim custody granted to petitioner-mother. Respondent-father granted visiting rights every other Sunday.',
+  'DSWO report due within 30 days. Respondent warned against interfering with minor''s schooling or residence.',
+  '2026-01-20 11:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe040001-0000-4000-8000-000000000001'::uuid);
+
+-- FAM-2026-0003 – Hearing 2: Evidence (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe050001-0000-4000-8000-000000000001'::uuid,
+  'ff200001-0000-4000-8000-000000000001',
+  2, 'regular', '2026-01-20 11:00:00', '2026-01-20 12:30:00',
+  'ee600001-0000-4000-8000-000000000001', 'Family Court Room 2, Rawalpindi',
+  'DSWO welfare report received and marked Exh. C-1. Report recommends custody with mother as it serves the welfare of the minor. PW-1 (Nadia Akram) examined in chief. Medical evidence of respondent''s drug use (Exh. P-2) tendered. Cross-examination on next date.',
+  'DSWO report supports petitioner. PW-1 cross-examination on next date. Respondent to arrange clean chit from PEMRA/health authority if relying on sobriety claim.',
+  '2026-02-25 11:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe050001-0000-4000-8000-000000000001'::uuid);
+
+-- CRM-2026-0004 – Hearing 1: Charge framing (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe060001-0000-4000-8000-000000000001'::uuid,
+  'ff300001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2026-03-25 09:00:00', '2026-03-25 10:30:00',
+  'ee800001-0000-4000-8000-000000000001', 'Sessions Court Room 3, Multan',
+  'Case registered and challan submitted by prosecution. Charge under Section 302/34 PPC framed and read to accused Wasim Akram. Accused pleaded not guilty. Case transferred to Sessions Court for trial. Bail application to be filed separately.',
+  'Charge framed. Case at trial stage. Prosecution to produce witnesses starting next date. IO to be summoned first.',
+  '2026-04-20 09:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe060001-0000-4000-8000-000000000001'::uuid);
+
+-- CRM-2026-0005 – Hearing 1: Appearance (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe070001-0000-4000-8000-000000000001'::uuid,
+  'ff400001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2025-12-05 10:00:00', '2025-12-05 11:00:00',
+  'ee700001-0000-4000-8000-000000000001', 'Special Court (PECA), Rawalpindi',
+  'First hearing. All three accused appeared on bail. FIA charge sheet and digital forensics report produced. Issues framed: (1) Whether accused committed offences under PECA 2016? (2) Whether victim''s account was accessed without authorization? Case proceeds for recording of prosecution evidence.',
+  'Digital forensic evidence to be examined by an independent IT expert. FIA Inspector to be examined as PW-1. Next date for evidence.',
+  '2026-01-15 10:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe070001-0000-4000-8000-000000000001'::uuid);
+
+-- CIV-2026-0013 – Ejectment – Hearing 1 (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe080001-0000-4000-8000-000000000001'::uuid,
+  'ff500001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2026-02-01 11:00:00', '2026-02-01 12:00:00',
+  'ee600001-0000-4000-8000-000000000001', 'Rent Controller Court, Karachi',
+  'Preliminary hearing in ejectment suit. Defendant appeared with counsel. Original tenancy agreement produced. Issues framed: (1) Whether tenancy has expired? (2) Whether defendant owes arrears? (3) Whether plaintiff is entitled to ejectment? Evidence stage commenced.',
+  'Issues framed. Plaintiff to produce evidence first. Defendant to bring all receipts claimed as proof of payment. Next date for PW-1 examination.',
+  '2026-03-05 11:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe080001-0000-4000-8000-000000000001'::uuid);
+
+-- CIV-2026-0014 – Insurance – Hearing 1 (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe090001-0000-4000-8000-000000000001'::uuid,
+  'ff600001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2025-09-05 10:00:00', '2025-09-05 11:00:00',
+  'ee600001-0000-4000-8000-000000000001', 'Civil Court Room 2, Rawalpindi',
+  'Preliminary hearing. Insurance policy and repudiation letter produced. Defendant insurance company filed written statement denying liability. Issues framed: (1) Is the repudiation of claim valid? (2) Is the alleged non-disclosure a bar to claim? Evidence stage commenced.',
+  'Both sides to produce actuarial/medical expert witnesses. Policy documents Exh. P-1, repudiation letter Exh. P-2 marked.',
+  '2025-10-10 10:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe090001-0000-4000-8000-000000000001'::uuid);
+
+-- CIV-2026-0014 – Insurance – Hearing 2 (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe0a0001-0000-4000-8000-000000000001'::uuid,
+  'ff600001-0000-4000-8000-000000000001',
+  2, 'evidence_recording', '2025-10-10 10:00:00', '2025-10-10 11:30:00',
+  'ee600001-0000-4000-8000-000000000001', 'Civil Court Room 2, Rawalpindi',
+  'PW-1 (Nadia Akram) examined in chief. Death certificate, post-mortem report, and medical history Exh. P-3 through P-5 tendered. Plaintiff''s counsel argued no pre-existing condition was known at time of policy. Cross-examination by insurance counsel deferred.',
+  'PW-1 cross-examination on next date. Insurance company to produce underwriting file.',
+  '2025-12-01 10:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe0a0001-0000-4000-8000-000000000001'::uuid);
+
+-- LRV-2026-0005 – Benami – Hearing 1 (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe0b0001-0000-4000-8000-000000000001'::uuid,
+  'ff700001-0000-4000-8000-000000000001',
+  1, 'preliminary', '2025-07-20 11:00:00', '2025-07-20 12:00:00',
+  'ee600001-0000-4000-8000-000000000001', 'Revenue Court Room 1, Multan',
+  'First hearing in benami challenge. Petitioner produced certified mutation record and inheritance certificate. Respondent (Anwar Brothers) appeared through partner and denied benami allegations. Issues framed: (1) Was the transfer benami? (2) Is petitioner entitled to share as heir? Evidence stage commenced.',
+  'Petitioner to produce witnesses on next date. Revenue records and account books of Anwar Brothers to be summoned from Revenue Office.',
+  '2025-09-01 11:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe0b0001-0000-4000-8000-000000000001'::uuid);
+
+-- LRV-2026-0005 – Benami – Hearing 2: Arguments (completed)
+INSERT INTO public.hearings (id, case_id, hearing_number, hearing_type, scheduled_date, actual_date,
+  presiding_officer_id, courtroom, proceedings_summary, judge_remarks, next_hearing_date, status)
+SELECT 'fe0c0001-0000-4000-8000-000000000001'::uuid,
+  'ff700001-0000-4000-8000-000000000001',
+  2, 'arguments', '2026-01-15 11:00:00', '2026-01-15 13:00:00',
+  'ee600001-0000-4000-8000-000000000001', 'Revenue Court Room 1, Multan',
+  'Arguments commenced. Petitioner''s counsel cited Benami Transactions Act 2017 and revenue record extracts showing no monetary consideration in mutation. Respondent''s counsel produced firm account books and a receipt allegedly showing payment of consideration. Arguments continue.',
+  'Both parties to file written synopses on legal interpretation of benami under the 2017 Act by next date. Judgment to follow.',
+  '2026-03-10 11:00:00', 'completed'
+WHERE NOT EXISTS (SELECT 1 FROM public.hearings WHERE id = 'fe0c0001-0000-4000-8000-000000000001'::uuid);
+
+-- ── STEP C11: Order Sheets ────────────────────────────────────────────────────
+
+INSERT INTO public.order_sheets (case_id, hearing_id, order_type, order_text, issued_by)
+SELECT 'ff100001-0000-4000-8000-000000000001', 'fe010001-0000-4000-8000-000000000001'::uuid,
+  'interim',
+  'Conciliation proceedings have failed. Respondent is directed to pay interim maintenance of PKR 20,000 per month for minor daughter Hira from today until further orders. Non-payment within 7 days of each month shall entitle petitioner to apply for execution. Next date for evidence: 18-11-2025.',
+  'ee600001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.order_sheets WHERE case_id = 'ff100001-0000-4000-8000-000000000001'
+  AND hearing_id = 'fe010001-0000-4000-8000-000000000001'::uuid
+);
+
+INSERT INTO public.order_sheets (case_id, hearing_id, order_type, order_text, issued_by)
+SELECT 'ff200001-0000-4000-8000-000000000001', 'fe040001-0000-4000-8000-000000000001'::uuid,
+  'interim',
+  'Interim custody of minor Usman (8 years) is granted to petitioner-mother Nadia Akram pending final decision. Respondent is granted visiting rights on every alternate Sunday from 10:00 AM to 5:00 PM. District Social Welfare Officer, Rawalpindi is directed to prepare a welfare report within 30 days. Next date: 20-01-2026.',
+  'ee600001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.order_sheets WHERE case_id = 'ff200001-0000-4000-8000-000000000001'
+  AND hearing_id = 'fe040001-0000-4000-8000-000000000001'::uuid
+);
+
+INSERT INTO public.order_sheets (case_id, hearing_id, order_type, order_text, issued_by)
+SELECT 'ff300001-0000-4000-8000-000000000001', 'fe060001-0000-4000-8000-000000000001'::uuid,
+  'interim',
+  'Charge under Section 302(b) PPC read to accused Wasim Akram. Accused pleaded not guilty. Trial to proceed. IO Sub-Inspector Sajid Ali summoned for examination as PW-1 on 20-04-2026. Prosecution directed to ensure presence of all eye-witnesses. Next date: 20-04-2026.',
+  'ee800001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.order_sheets WHERE case_id = 'ff300001-0000-4000-8000-000000000001'
+  AND hearing_id = 'fe060001-0000-4000-8000-000000000001'::uuid
+);
+
+INSERT INTO public.order_sheets (case_id, hearing_id, order_type, order_text, issued_by)
+SELECT 'ff400001-0000-4000-8000-000000000001', 'fe070001-0000-4000-8000-000000000001'::uuid,
+  'interim',
+  'Issues framed in PECA case. FIA Inspector Tariq Bashir to be examined as PW-1 on next date (15-01-2026). Independent IT forensic expert from NUST to be appointed to verify digital evidence. Expert fee of PKR 50,000 to be deposited equally by both parties.',
+  'ee700001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.order_sheets WHERE case_id = 'ff400001-0000-4000-8000-000000000001'
+  AND hearing_id = 'fe070001-0000-4000-8000-000000000001'::uuid
+);
+
+-- ── STEP C12: Witnesses for new cases ────────────────────────────────────────
+
+-- FAM-2026-0002 witnesses
+INSERT INTO public.witness_records (case_id, witness_name, witness_cnic, witness_contact, witness_address,
+  witness_side, relation_to_case, statement, status, examination_date, added_by)
+SELECT 'ff100001-0000-4000-8000-000000000001',
+  'Shahid Mehmood (Plaintiff)', '42101-1234567-3', '03002223344', 'Flat 4-B, Block 9, Gulshan-e-Iqbal, Karachi',
+  'prosecution', 'Plaintiff / Husband',
+  'I married Nadia Akram on 15-06-2020. We have one minor daughter Hira. My wife left the matrimonial home in September 2025 without any lawful excuse and is refusing to return. I have not subjected her to any cruelty. I am willing to maintain her at my home.',
+  'examined', '2025-11-18', 'ee500001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.witness_records WHERE case_id = 'ff100001-0000-4000-8000-000000000001' AND witness_name = 'Shahid Mehmood (Plaintiff)'
+);
+
+-- CRM-2026-0004 witnesses
+INSERT INTO public.witness_records (case_id, witness_name, witness_cnic, witness_contact, witness_address,
+  witness_side, relation_to_case, statement, status, examination_date, added_by)
+SELECT 'ff300001-0000-4000-8000-000000000001',
+  'Khalid Mahmood (Complainant)', '36302-4567891-2', '03006667788', '15 Nishtar Colony, Multan',
+  'prosecution', 'Complainant / Brother of Deceased',
+  'On 10-03-2026 at about 9:00 PM I received a call that my brother Muhammad Iqbal had been shot near Dera Adda. I reached the spot within 10 minutes and found him lying in a pool of blood. He was already dead. Accused Wasim Akram and my brother had a dispute over 5 Kanals of land near our village. I witnessed the accused with a pistol near the scene earlier that evening.',
+  'listed', NULL, 'ee400001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.witness_records WHERE case_id = 'ff300001-0000-4000-8000-000000000001' AND witness_name = 'Khalid Mahmood (Complainant)'
+);
+
+INSERT INTO public.witness_records (case_id, witness_name, witness_cnic, witness_contact,
+  witness_side, relation_to_case, status, added_by)
+SELECT 'ff300001-0000-4000-8000-000000000001',
+  'Sub-Inspector Sajid Ali (IO)', '36302-1234560-0', '03211113344',
+  'prosecution', 'Investigation Officer – Multan City PS',
+  'summoned', 'ee400001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.witness_records WHERE case_id = 'ff300001-0000-4000-8000-000000000001' AND witness_name = 'Sub-Inspector Sajid Ali (IO)'
+);
+
+-- CIV-2026-0014 witnesses
+INSERT INTO public.witness_records (case_id, witness_name, witness_cnic, witness_contact, witness_address,
+  witness_side, relation_to_case, statement, status, examination_date, added_by)
+SELECT 'ff600001-0000-4000-8000-000000000001',
+  'Nadia Akram (Plaintiff)', '37201-9876543-5', '03135559988', 'House 22, Satellite Town, Rawalpindi',
+  'prosecution', 'Plaintiff / Insured Widow',
+  'My late husband Bilal Anwar had a State Life Insurance policy SL-2019-456789 with sum assured of PKR 50,00,000. He passed away on 15-06-2025. I filed the death claim. The company repudiated it claiming he had undisclosed hypertension. He was fully examined by their doctor at policy inception and passed the medical test.',
+  'examined', '2025-10-10', 'ee500001-0000-4000-8000-000000000001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.witness_records WHERE case_id = 'ff600001-0000-4000-8000-000000000001' AND witness_name = 'Nadia Akram (Plaintiff)'
+);
+
+-- ── STEP C13: Activity Log ────────────────────────────────────────────────────
+
+INSERT INTO public.case_activity_log (case_id, actor_id, action, details)
+SELECT case_id::uuid, actor_id::uuid, action, details::jsonb
+FROM (VALUES
+  ('ff100001-0000-4000-8000-000000000001','ee100001-0000-4000-8000-000000000001','case_filed',         '{"note":"FAM-2026-0002 Restitution petition filed by Shahid Mehmood"}'),
+  ('ff100001-0000-4000-8000-000000000001','ee500001-0000-4000-8000-000000000001','case_accepted',      '{"note":"Adv. Saima Khan accepted","fee_amount":80000}'),
+  ('ff100001-0000-4000-8000-000000000001','ee600001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"evidence_stage","new_status":"arguments","note":"Evidence concluded"}'),
+  ('ff100001-0000-4000-8000-000000000001','ee600001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"arguments","new_status":"reserved_for_judgment","note":"Judgment reserved"}'),
+  ('ff200001-0000-4000-8000-000000000001','ee200001-0000-4000-8000-000000000001','case_filed',         '{"note":"FAM-2026-0003 Guardianship petition filed by Nadia Akram"}'),
+  ('ff200001-0000-4000-8000-000000000001','ee500001-0000-4000-8000-000000000001','case_accepted',      '{"note":"Adv. Saima Khan accepted guardianship case","fee_amount":60000}'),
+  ('ff200001-0000-4000-8000-000000000001','ee600001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"issues_framed","new_status":"evidence_stage","note":"Welfare report received, evidence stage"}'),
+  ('ff300001-0000-4000-8000-000000000001','ee300001-0000-4000-8000-000000000001','case_filed',         '{"note":"CRM-2026-0004 Murder case FIR filed by Khalid Mahmood"}'),
+  ('ff300001-0000-4000-8000-000000000001','ee400001-0000-4000-8000-000000000001','case_accepted',      '{"note":"Barrister Faisal Qureshi accepted murder case","fee_amount":150000}'),
+  ('ff300001-0000-4000-8000-000000000001','ee800001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"registered","new_status":"preliminary_hearing","note":"Charge framed against Wasim Akram"}'),
+  ('ff400001-0000-4000-8000-000000000001','ee200001-0000-4000-8000-000000000001','case_filed',         '{"note":"CRM-2026-0005 Cybercrime complaint filed by Nadia Akram"}'),
+  ('ff400001-0000-4000-8000-000000000001','ee400001-0000-4000-8000-000000000001','case_accepted',      '{"note":"Barrister Faisal Qureshi accepted cybercrime case","fee_amount":90000}'),
+  ('ff400001-0000-4000-8000-000000000001','ee700001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"registered","new_status":"issues_framed","note":"Issues framed in PECA case"}'),
+  ('ff500001-0000-4000-8000-000000000001','ee100001-0000-4000-8000-000000000001','case_filed',         '{"note":"CIV-2026-0013 Ejectment suit filed by Shahid Mehmood"}'),
+  ('ff500001-0000-4000-8000-000000000001','1e1e6011-e4ab-446c-8592-a4dbb4168810','case_accepted',      '{"note":"Adv. Ayesha Malik accepted ejectment case","fee_amount":55000}'),
+  ('ff500001-0000-4000-8000-000000000001','475b9f5e-d054-41e7-843e-544afb0b3803','status_changed',     '{"old_status":"registered","new_status":"issues_framed","note":"Issues framed in ejectment suit"}'),
+  ('ff600001-0000-4000-8000-000000000001','ee200001-0000-4000-8000-000000000001','case_filed',         '{"note":"CIV-2026-0014 Insurance claim suit filed by Nadia Akram"}'),
+  ('ff600001-0000-4000-8000-000000000001','ee500001-0000-4000-8000-000000000001','case_accepted',      '{"note":"Adv. Saima Khan accepted insurance case","fee_amount":100000}'),
+  ('ff600001-0000-4000-8000-000000000001','ee600001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"issues_framed","new_status":"evidence_stage","note":"Evidence stage commenced"}'),
+  ('ff700001-0000-4000-8000-000000000001','ee300001-0000-4000-8000-000000000001','case_filed',         '{"note":"LRV-2026-0005 Benami transfer challenge filed by Khalid Mahmood"}'),
+  ('ff700001-0000-4000-8000-000000000001','cc300001-0000-4000-8000-000000000001','case_accepted',      '{"note":"Adv. Imran Siddiqui accepted benami case","fee_amount":110000}'),
+  ('ff700001-0000-4000-8000-000000000001','ee600001-0000-4000-8000-000000000001','status_changed',     '{"old_status":"evidence_stage","new_status":"arguments","note":"Evidence concluded, arguments stage"}'),
+  ('ff800001-0000-4000-8000-000000000001','ee100001-0000-4000-8000-000000000001','case_filed',         '{"note":"LTR-2026-0003 Mortgage redemption suit filed by Shahid Mehmood"}')
+) AS v(case_id, actor_id, action, details)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.case_activity_log l
+  WHERE l.case_id = v.case_id::uuid AND l.action = v.action AND l.details::text = v.details
+);
+
+-- ── STEP C14: Notifications for Batch 3 ──────────────────────────────────────
+
+INSERT INTO public.notifications (user_id, title, message, type, reference_type, is_read)
+SELECT user_id::uuid, title, message, type::public.notification_type, reference_type, is_read
+FROM (VALUES
+  ('ee100001-0000-4000-8000-000000000001','Family Case Filed','Your case FAM-2026-0002 (Restitution of Conjugal Rights) has been registered.','case_status_changed','case',true),
+  ('ee100001-0000-4000-8000-000000000001','Interim Maintenance Ordered','Court ordered PKR 20,000/month interim maintenance for minor Hira in FAM-2026-0002.','case_status_changed','case',true),
+  ('ee100001-0000-4000-8000-000000000001','Judgment Reserved','Judgment has been reserved in FAM-2026-0002. Await next hearing date.','case_status_changed','case',false),
+  ('ee100001-0000-4000-8000-000000000001','Ejectment Case Registered','Your ejectment suit CIV-2026-0013 has been registered.','case_status_changed','case',true),
+  ('ee100001-0000-4000-8000-000000000001','Lawyer Accepted Case','Adv. Ayesha Malik has accepted your ejectment case CIV-2026-0013.','case_assigned','case',true),
+  ('ee100001-0000-4000-8000-000000000001','Mortgage Case Submitted','Your mortgage redemption case LTR-2026-0003 is under scrutiny.','case_status_changed','case',false),
+  ('ee200001-0000-4000-8000-000000000001','Guardianship Case Registered','Your guardianship petition FAM-2026-0003 has been registered.','case_status_changed','case',true),
+  ('ee200001-0000-4000-8000-000000000001','Interim Custody Granted','Court has granted interim custody of Usman to you in FAM-2026-0003.','case_status_changed','case',true),
+  ('ee200001-0000-4000-8000-000000000001','Cybercrime Case Update','Issues framed in CRM-2026-0005. Next hearing for evidence recording.','case_status_changed','case',false),
+  ('ee200001-0000-4000-8000-000000000001','Insurance Case Update','Your insurance suit CIV-2026-0014 is in evidence stage.','case_status_changed','case',false),
+  ('ee300001-0000-4000-8000-000000000001','Murder Case Registered','Your criminal case CRM-2026-0004 has been registered and charge framed.','case_status_changed','case',true),
+  ('ee300001-0000-4000-8000-000000000001','Benami Case Update','Your benami land challenge LRV-2026-0005 is in arguments stage.','case_status_changed','case',false),
+  ('ee300001-0000-4000-8000-000000000001','Hearing Reminder','Next hearing in CRM-2026-0004 on 20-Apr-2026. Ensure witnesses are available.','hearing_reminder','case',false),
+  ('ee400001-0000-4000-8000-000000000001','New Murder Case Assigned','You have been assigned to CRM-2026-0004 (Section 302 PPC). Please review urgently.','case_assigned','case',true),
+  ('ee400001-0000-4000-8000-000000000001','New Cybercrime Case Assigned','You have been assigned to CRM-2026-0005 (PECA Fraud). Please review.','case_assigned','case',true),
+  ('ee400001-0000-4000-8000-000000000001','Court Fee Pending','Instalment 2/3 for CRM-2026-0004 is pending. Please ensure timely payment.','payment_completed','case',false),
+  ('ee500001-0000-4000-8000-000000000001','New Family Case Assigned','You have been assigned to FAM-2026-0002 (Restitution). Please review.','case_assigned','case',true),
+  ('ee500001-0000-4000-8000-000000000001','New Guardianship Case Assigned','You have been assigned to FAM-2026-0003 (Guardianship). Please review.','case_assigned','case',true),
+  ('ee500001-0000-4000-8000-000000000001','New Insurance Case Assigned','You have been assigned to CIV-2026-0014 (Insurance Claim). Please review.','case_assigned','case',true),
+  ('ee500001-0000-4000-8000-000000000001','Hearing Reminder','PW-1 cross-examination in FAM-2026-0003 on 25-Feb-2026. Prepare cross-examination notes.','hearing_reminder','case',false),
+  ('ee600001-0000-4000-8000-000000000001','New Family Cases Assigned','FAM-2026-0002 and FAM-2026-0003 assigned to your court.','case_assigned','case',true),
+  ('ee600001-0000-4000-8000-000000000001','Judgment to be Announced','FAM-2026-0002 is reserved for judgment. Please set announcement date.','case_status_changed','case',false),
+  ('ee700001-0000-4000-8000-000000000001','New Criminal Cases Assigned','CRM-2026-0005 (Cybercrime) and FAM-2026-0003 (Guardianship) have been registered in your court.','case_assigned','case',true),
+  ('ee800001-0000-4000-8000-000000000001','High-Priority Murder Case','CRM-2026-0004 (Section 302 PPC) has been registered and requires urgent attention.','case_assigned','case',true),
+  ('ee800001-0000-4000-8000-000000000001','New Benami Case Registered','LRV-2026-0005 (Benami Transfer Challenge) is under your court jurisdiction.','case_assigned','case',true),
+  ('1e1e6011-e4ab-446c-8592-a4dbb4168810','New Ejectment Case Assigned','You have been assigned to CIV-2026-0013 (Ejectment, Karachi). Please review.','case_assigned','case',true)
+) AS v(user_id, title, message, type, reference_type, is_read)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.notifications n
+  WHERE n.user_id = v.user_id::uuid AND n.title = v.title
+);

@@ -49,6 +49,7 @@ export default function LandRegistryPage() {
     tehsil: "",
     mauza: "",
     mutation_number: "",
+    deed_number: "",
     land_type: "",
     case_type: "",
   });
@@ -74,6 +75,7 @@ export default function LandRegistryPage() {
       tehsil: "",
       mauza: "",
       mutation_number: "",
+      deed_number: "",
       land_type: "",
       case_type: "",
     });
@@ -121,6 +123,12 @@ export default function LandRegistryPage() {
               onChange={(e) => setF("mutation_number", e.target.value)}
             />
             <Input
+              label="Deed Number"
+              placeholder="e.g. D-2024-1234"
+              value={filters.deed_number}
+              onChange={(e) => setF("deed_number", e.target.value)}
+            />
+            <Input
               label="District"
               placeholder="e.g. Lahore"
               value={filters.district}
@@ -163,7 +171,7 @@ export default function LandRegistryPage() {
           <div className="mt-4 flex gap-3">
             <Button
               onClick={handleSearch}
-              disabled={!hasActiveFilter || isLoading}
+              disabled={isLoading}
               leftIcon={<Search className="h-4 w-4" />}
             >
               {isLoading ? "Searching..." : "Search Registry"}

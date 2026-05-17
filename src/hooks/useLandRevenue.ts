@@ -36,6 +36,7 @@ export interface LandRegistryFilters {
   khasra_number?: string;
   khewat_number?: string;
   mutation_number?: string;
+  deed_number?: string;
   land_type?: "agricultural" | "residential" | "commercial" | "";
   case_type?: "land_revenue" | "land_transfer" | "";
 }
@@ -84,6 +85,9 @@ export function useLandRevenue() {
         }
         if (filters.mutation_number) {
           query = query.ilike("mutation_number", `%${filters.mutation_number}%`);
+        }
+        if (filters.deed_number) {
+          query = query.ilike("deed_number", `%${filters.deed_number}%`);
         }
         if (filters.land_type) {
           query = query.eq("land_type", filters.land_type);

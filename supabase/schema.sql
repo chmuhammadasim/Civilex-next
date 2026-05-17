@@ -1967,20 +1967,10 @@ CREATE POLICY "attendance_delete" ON public.hearing_attendance
   );
 
 -- ── land_case_details ─────────────────────────────────────────
+-- Property Registry is a public lookup — any authenticated user may read.
 CREATE POLICY "land_details_select" ON public.land_case_details
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.cases c WHERE c.id = land_case_details.case_id AND (
-        c.plaintiff_id = auth.uid() OR c.defendant_id = auth.uid()
-        OR c.admin_court_id = auth.uid() OR c.trial_judge_id = auth.uid() OR c.stenographer_id = auth.uid()
-        OR EXISTS (
-          SELECT 1 FROM public.case_assignments ca
-          WHERE ca.case_id = c.id AND ca.lawyer_id = auth.uid() AND ca.status != 'declined'
-        )
-        OR (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('admin_court', 'magistrate', 'trial_judge')
-      )
-    )
-  );
+  FOR SELECT TO authenticated
+  USING (true);
 
 CREATE POLICY "land_details_insert" ON public.land_case_details
   FOR INSERT TO authenticated WITH CHECK (
